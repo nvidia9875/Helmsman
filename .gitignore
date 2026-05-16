@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.npm
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp.*
+
+# Build outputs
+.next/
+.turbo/
+out/
+dist/
+build/
+
+# IDE
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.secrets
+
+# Azure / Bicep
+*.azurePubxml
+.azure/
+.func/
+bin/
+obj/
+
+# Teams Toolkit
+appPackage/build/
+env/.env.*.user
+.localConfigs
+
+# Logs
+logs/
+*.log
+
+# Misc
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+
+# This workspace contains unrelated projects we don't want in Helmsman
+.claude/
+everything-claude-code/
+
+# Internal planning / strategy docs (not for public)
+actions.md
+meeting-helmsman.md
+helmsman-architecture.md
+helmsman-cost.md
+helmsman-phase1-tasks.md
+helmsman-sprint16.md
+helmsman-zenn-outline.md
+pivot-web.md
+tech-stack.md
