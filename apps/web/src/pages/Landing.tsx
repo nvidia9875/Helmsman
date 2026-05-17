@@ -1,5 +1,5 @@
 import { Button, makeStyles, tokens } from '@fluentui/react-components';
-import { ArrowRight24Regular, Rocket24Regular } from '@fluentui/react-icons';
+import { Rocket24Regular } from '@fluentui/react-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -271,16 +271,6 @@ export function Landing() {
               onClick={() => navigate('/new')}
             >
               Bot を派遣
-            </Button>
-            <Button
-              appearance="subtle"
-              icon={<ArrowRight24Regular />}
-              iconPosition="after"
-              as="a"
-              href="https://github.com/nvidia9875/Helmsman"
-              target="_blank"
-            >
-              GitHub で見る
             </Button>
           </div>
           <div className={styles.badges}>
