@@ -1,6 +1,7 @@
 import {
   Body1,
   Button,
+  Caption1,
   Dropdown,
   Field,
   Input,
@@ -20,19 +21,40 @@ import { useIdentity } from '@/lib/store';
 
 const useStyles = makeStyles({
   root: {
-    maxWidth: '720px',
-    margin: '64px auto',
+    maxWidth: '760px',
+    margin: '48px auto',
     padding: '32px',
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
+  },
+  intro: {
+    color: tokens.colorNeutralForeground2,
+    lineHeight: 1.7,
+  },
+  primaryField: {
+    border: `1px solid ${tokens.colorBrandStroke2}`,
+    backgroundColor: tokens.colorBrandBackground2,
+    borderRadius: tokens.borderRadiusLarge,
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  optionalGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '16px',
+    '@media (max-width: 700px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
   hint: {
     color: tokens.colorNeutralForeground3,
   },
   parentBanner: {
     border: `1px solid ${tokens.colorBrandStroke2}`,
-    backgroundColor: tokens.colorBrandBackground2,
+    backgroundColor: tokens.colorNeutralBackground2,
     borderRadius: tokens.borderRadiusMedium,
     padding: '12px 16px',
     display: 'flex',
@@ -45,9 +67,16 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground2,
     fontSize: '13px',
   },
+  actionRow: {
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
 });
 
 const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '1on1', 'Kickoff'];
+const TEAMS_URL_PATTERN = /^https:\/\/teams\.microsoft\.com\/.+meetup-join/;
 
 export function CreateMeeting() {
   const styles = useStyles();
@@ -62,19 +91,21 @@ export function CreateMeeting() {
     enabled: !!parentId,
   });
 
+  const [teamsUrl, setTeamsUrl] = useState('');
   const [goal, setGoal] = useState('');
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
   const [name, setNameLocal] = useState(displayName === 'Anonymous' ? '' : displayName);
 
-  const mutation = useMutation({
+  const dispatchMutation = useMutation({
     mutationFn: () =>
       api.startMeeting({
         organizer_id: userId,
-        goal,
+        goal: goal.trim(),
         mode,
         total_minutes: totalMinutes,
         parent_meeting_id: parentId,
+        teams_meeting_url: teamsUrl.trim() || null,
       }),
     onSuccess: (meeting) => {
       if (name) setName(name);
@@ -83,20 +114,24 @@ export function CreateMeeting() {
   });
 
   const inheritedTopics = parentMeeting?.topics.filter((t) => t.state !== 'decided') ?? [];
-
-  const ready = goal.trim().length >= 4 && !!name.trim();
+  const teamsUrlValid = TEAMS_URL_PATTERN.test(teamsUrl.trim());
+  const ready = teamsUrlValid && !!name.trim();
 
   return (
     <div className={styles.root}>
-      <Title2>{parentId ? '前回会議の続きを作る' : '新しい会議を作る'}</Title2>
-      <Body1 className={styles.hint}>
-        ゴールを宣言すると、AI が論点を分解して会議室を発行します。
+      <Title2 style={{ margin: 0 }}>
+        {parentId ? '🔁 前回セッションを引き継いで派遣' : '🤖 Helmsman Bot を Teams 会議に派遣'}
+      </Title2>
+      <Body1 className={styles.intro}>
+        Helmsman は<strong>新しい会議を作るアプリではありません</strong>。
+        既に Teams カレンダーに入っている会議の URL を貼ってもらえれば、
+        Bot が「Helmsman 🧭 (External)」として参加し、議論を分析します。
       </Body1>
 
       {parentMeeting && (
         <div className={styles.parentBanner}>
           <Body1>
-            <strong>📎 前回会議:</strong> {parentMeeting.goal}
+            <strong>📎 前回セッション:</strong> {parentMeeting.goal || '(ゴール未設定)'}
           </Body1>
           {inheritedTopics.length > 0 ? (
             <>
@@ -109,67 +144,101 @@ export function CreateMeeting() {
             </>
           ) : (
             <Body1 className={styles.hint}>
-              前回会議の論点は全て決定済です。新規ゴールから論点を再構成します。
+              前回の論点は全て決定済です。今回は新規の論点構成になります。
             </Body1>
           )}
         </div>
       )}
 
-      <Field label="あなたの表示名" required>
+      <div className={styles.primaryField}>
+        <Field
+          label={
+            <span>
+              📅 Teams 会議 URL <span style={{ color: tokens.colorPaletteRedForeground1 }}>*</span>
+            </span>
+          }
+          hint="Teams カレンダーで会議を開いて「リンクをコピー」した URL を貼ってください"
+        >
+          <Input
+            value={teamsUrl}
+            onChange={(_, d) => setTeamsUrl(d.value)}
+            placeholder="https://teams.microsoft.com/l/meetup-join/..."
+          />
+        </Field>
+        {teamsUrl && !teamsUrlValid && (
+          <Caption1 style={{ color: tokens.colorPaletteRedForeground1 }}>
+            URL の形式が不正です (https://teams.microsoft.com/.../meetup-join/...)
+          </Caption1>
+        )}
+      </div>
+
+      <Field label="あなたの表示名 (派遣ホスト)" required>
         <Input value={name} onChange={(_, d) => setNameLocal(d.value)} placeholder="例: 山田" />
       </Field>
 
-      <Field label="ゴール (会議の最終的な決定 / 成果物)" required>
+      <Field
+        label="会議のゴール (任意)"
+        hint="入れると Bot が論点を分解 + 進捗を追跡。空のままでも「監視のみ」モードで派遣できます。"
+      >
         <Textarea
           value={goal}
           onChange={(_, d) => setGoal(d.value)}
-          placeholder="例: 6 月 30 日のローンチ可否を決定する"
-          rows={3}
+          placeholder="例: 6 月 30 日のローンチ可否を決定する  /  未設定でも OK"
+          rows={2}
         />
       </Field>
 
-      <Field label="モード">
-        <Dropdown
-          value={mode}
-          selectedOptions={[mode]}
-          onOptionSelect={(_, d) => d.optionValue && setMode(d.optionValue as MeetingMode)}
+      <div className={styles.optionalGrid}>
+        <Field label="会議モード">
+          <Dropdown
+            value={mode}
+            selectedOptions={[mode]}
+            onOptionSelect={(_, d) => d.optionValue && setMode(d.optionValue as MeetingMode)}
+          >
+            {MODES.map((m) => (
+              <Option key={m} value={m}>
+                {m}
+              </Option>
+            ))}
+          </Dropdown>
+        </Field>
+
+        <Field label="想定時間 (分)">
+          <Input
+            type="number"
+            value={String(totalMinutes)}
+            min={5}
+            max={240}
+            onChange={(_, d) =>
+              setTotalMinutes(Math.max(5, Math.min(240, Number(d.value) || 60)))
+            }
+          />
+        </Field>
+      </div>
+
+      <div className={styles.actionRow}>
+        <Button
+          appearance="primary"
+          size="large"
+          disabled={!ready || dispatchMutation.isPending}
+          onClick={() => dispatchMutation.mutate()}
         >
-          {MODES.map((m) => (
-            <Option key={m} value={m}>
-              {m}
-            </Option>
-          ))}
-        </Dropdown>
-      </Field>
+          {dispatchMutation.isPending ? (
+            <>
+              <Spinner size="tiny" /> Bot を派遣中…
+            </>
+          ) : (
+            '🤖 Bot を派遣して司令室を開く'
+          )}
+        </Button>
+        <Caption1 className={styles.hint}>
+          派遣すると Helmsman が会議に外部参加者として join します。
+        </Caption1>
+      </div>
 
-      <Field label="予定時間 (分)">
-        <Input
-          type="number"
-          value={String(totalMinutes)}
-          min={5}
-          max={240}
-          onChange={(_, d) => setTotalMinutes(Math.max(5, Math.min(240, Number(d.value) || 60)))}
-        />
-      </Field>
-
-      <Button
-        appearance="primary"
-        size="large"
-        disabled={!ready || mutation.isPending}
-        onClick={() => mutation.mutate()}
-      >
-        {mutation.isPending ? (
-          <>
-            <Spinner size="tiny" /> 論点を分解中...
-          </>
-        ) : (
-          '会議を始める'
-        )}
-      </Button>
-
-      {mutation.isError && (
+      {dispatchMutation.isError && (
         <Body1 style={{ color: tokens.colorPaletteRedForeground1 }}>
-          エラー: {String(mutation.error)}
+          エラー: {String(dispatchMutation.error)}
         </Body1>
       )}
     </div>

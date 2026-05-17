@@ -70,42 +70,45 @@ export function Landing() {
           <Sparkle24Filled />
           <Title3>Helmsman</Title3>
         </div>
-        <Title1>議事録は完成、次は会議そのものを成功させる時代へ。</Title1>
+        <Title1>Teams 会議に AI 副操縦士を派遣する。</Title1>
         <Body1 className={styles.pitch}>
-          会議のゴールを宣言するだけで、6+1 のエージェントが論点を分解し、時間を管理し、
-          議論の脱線を戻し、押し殺された反対意見を浮かび上がらせ、決定を構造化します。
-          どんな会議ツールでも、物理会議室でも、全員のデバイスに同期するサイドバーで会議の質を変える。
+          Helmsman は<strong>会議を作るアプリではありません</strong>。
+          Teams カレンダーに既にある会議の URL を貼ると、Bot が「Helmsman 🧭 (External)」として参加し、
+          論点を分解し、時間を管理し、議論の脱線を戻し、押し殺された反対意見を浮上させ、
+          決定を構造化します。
         </Body1>
 
         <div className={styles.actions}>
           <Button appearance="primary" size="large" onClick={() => navigate('/new')}>
-            + 新規会議を作る
-          </Button>
-          <Button
-            appearance="secondary"
-            size="large"
-            onClick={() => {
-              const id = window.prompt('参加する会議 ID は？');
-              if (id) navigate(`/m/${id}/join`);
-            }}
-          >
-            既存会議に参加
+            🤖 Bot を Teams 会議に派遣
           </Button>
         </div>
       </div>
 
       <div className={styles.features}>
         <Card>
-          <CardHeader header={<Title3>🎯 ゴール駆動</Title3>} description="ゴールから論点を MECE 分解。" />
+          <CardHeader
+            header={<Title3>📅 既存 Teams 会議に</Title3>}
+            description="新規会議を作らない。URL を貼って派遣するだけ。"
+          />
         </Card>
         <Card>
-          <CardHeader header={<Title3>📋 カバレッジ追跡</Title3>} description="リアルタイムで論点状態を更新。" />
+          <CardHeader
+            header={<Title3>📋 8 並列エージェント</Title3>}
+            description="論点・時間・決定・沈黙・反対をリアルタイム分析。"
+          />
         </Card>
         <Card>
-          <CardHeader header={<Title3>🧭 ステアリング</Title3>} description="議論が逸れたら自然に戻す。" />
+          <CardHeader
+            header={<Title3>🔊 音声で介入</Title3>}
+            description="L3 介入は Bot が日本語で会議で発話する。"
+          />
         </Card>
         <Card>
-          <CardHeader header={<Title3>🗳️ 決定キャプチャ</Title3>} description="決まった瞬間を構造化記録。" />
+          <CardHeader
+            header={<Title3>💰 1 円単位のコスト</Title3>}
+            description="Azure OpenAI 課金を会議単位で表示。"
+          />
         </Card>
       </div>
 

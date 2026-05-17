@@ -151,11 +151,13 @@ export interface InterventionDelivery {
 
 export interface StartMeetingRequest {
   organizer_id: string;
-  goal: string;
+  goal: string; // 任意。空文字なら "監視のみ" モードで派遣
   mode?: MeetingMode;
   total_minutes?: number;
   user_intensity?: UserIntensity;
   parent_meeting_id?: string | null;
+  // 任意。指定すると同じリクエスト内で Bot が Teams 会議に派遣される
+  teams_meeting_url?: string | null;
 }
 
 export interface TickRequest {

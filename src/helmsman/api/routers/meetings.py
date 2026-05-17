@@ -45,13 +45,21 @@ router = APIRouter(
 # ---------- request / response schemas ----------
 
 class StartMeetingRequest(BaseModel):
+    """Bot 派遣セッションを開始するリクエスト。
+
+    Helmsman は「会議を作る」ものではなく「既存 Teams 会議に Bot を派遣する」
+    プロダクトなので、`teams_meeting_url` が主役。`goal` を入れると論点も
+    分解されるが、入れなくても OK ("監視のみ" モード)。
+    """
     organizer_id: str
-    goal: str = Field(..., min_length=4, max_length=500)
+    goal: str = Field(default="", max_length=500)
     mode: MeetingMode = MeetingMode.DECISION
     total_minutes: int = Field(default=60, ge=5, le=240)
     user_intensity: UserIntensity = UserIntensity.NORMAL
-    # 継続会議 (任意): 指定すると前回会議の未解決論点を引き継ぐ
+    # 継続セッション (任意): 指定すると前回の未解決論点を引き継ぐ
     parent_meeting_id: str | None = None
+    # Teams 会議 URL (任意): 指定すると即時 Bot を派遣する
+    teams_meeting_url: str | None = None
 
 
 class UtteranceRequest(BaseModel):
@@ -124,20 +132,24 @@ async def start_meeting(
         series_id = parent.series_id or str(uuid4())
         series_index = (parent.series_index or 1) + 1
 
+    # ゴールが入っていれば論点を分解。空なら「監視モード」(topics 無し) で開始
     decomposer = GoalDecomposer()
-    try:
-        topics = await decomposer.run(
-            req.goal, req.mode, inherited_topics=inherited_topics or None
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.error(
-            "start_meeting.decomposer_failed",
-            goal=req.goal[:80],
-            error=str(e),
-            error_type=type(e).__name__,
-        )
-        # LLM 失敗時は空 topics で会議を作る (Coverage Tracker が後で動的に追加可能)
-        topics = []
+    topics: list[Topic] = []
+    has_goal = bool(req.goal and req.goal.strip())
+    if has_goal:
+        try:
+            topics = await decomposer.run(
+                req.goal, req.mode, inherited_topics=inherited_topics or None
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.error(
+                "start_meeting.decomposer_failed",
+                goal=req.goal[:80],
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            topics = []
+
     meeting = Meeting(
         organizer_id=req.organizer_id,
         goal=req.goal,
@@ -151,8 +163,10 @@ async def start_meeting(
         series_id=series_id,
         series_index=series_index,
         inherited_topic_ids=inherited_topic_ids,
+        teams_meeting_url=req.teams_meeting_url,
     )
-    _accumulate_usage(meeting.usage, [decomposer])
+    if has_goal:
+        _accumulate_usage(meeting.usage, [decomposer])
     await repo.create(meeting)
 
     # 親会議側に series_id を遡及付与 (シリーズ最初の継続時のみ)
@@ -160,6 +174,35 @@ async def start_meeting(
         parent.series_id = series_id
         parent.series_index = 1
         await repo.upsert(parent)
+
+    # Teams 会議 URL が渡されていれば即時 Bot 派遣 (フロントの 1-step UX 用)
+    if req.teams_meeting_url:
+        try:
+            from helmsman.services.teams_bot import invite_bot_to_teams_meeting
+            connection_id = await invite_bot_to_teams_meeting(
+                meeting_id=meeting.id,
+                organizer_id=req.organizer_id,
+                teams_meeting_url=req.teams_meeting_url,
+            )
+            meeting.bot_call_connection_id = connection_id
+            meeting.bot_status = "connecting"
+            meeting.bot_last_event_at = datetime.now(UTC)
+            await repo.upsert(meeting)
+            logger.info(
+                "start_meeting.bot_dispatched",
+                meeting_id=meeting.id,
+                call_connection_id=connection_id,
+            )
+        except Exception as e:  # noqa: BLE001
+            # Bot 派遣失敗は致命ではない — 会議自体は作成済。後から /bot/invite で再試行可能
+            logger.warning(
+                "start_meeting.bot_dispatch_failed",
+                meeting_id=meeting.id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            meeting.bot_status = "failed"
+            await repo.upsert(meeting)
 
     return meeting
 

@@ -110,15 +110,22 @@ export function MeetingRoom() {
     );
   }
 
-  const botIdle = meeting.bot_status === 'idle';
   const botActive = meeting.bot_status === 'in_call' || meeting.bot_status === 'connecting';
   const liveUtteranceCount = transcript?.utterance_count ?? 0;
+
+  // 派遣完了済 or 派遣中 → 招待カード/オンボーディングは表示しない (司令室として使う)
+  // 派遣失敗 / 退出 / そもそも URL 未設定 → 派遣ができる UI を出す
+  const needsDispatch = !botActive;
+  const hasUrlButNotDispatched =
+    !!meeting.teams_meeting_url && meeting.bot_status === 'idle';
 
   return (
     <div className={styles.root}>
       <div className={styles.main}>
         <div className={styles.goalRow}>
-          <Title2 style={{ margin: 0 }}>{meeting.goal}</Title2>
+          <Title2 style={{ margin: 0 }}>
+            {meeting.goal || '🤖 派遣セッション (ゴール未設定)'}
+          </Title2>
           <Caption1 className={styles.meta}>
             モード {meeting.mode} ・ 予定 {meeting.total_minutes} 分 ・ 状態 {meeting.state}
           </Caption1>
@@ -126,9 +133,13 @@ export function MeetingRoom() {
 
         <BotMissionCard meeting={meeting} liveUtteranceCount={liveUtteranceCount} />
 
-        {botIdle && <OnboardingSteps />}
+        {/* オンボーディングは「URL も未設定 + bot も未派遣」の極初期だけ */}
+        {needsDispatch && !hasUrlButNotDispatched && !meeting.teams_meeting_url && (
+          <OnboardingSteps />
+        )}
 
-        <TeamsBotInvite meeting={meeting} organizerId={organizerId} />
+        {/* 派遣 UI は bot が active でない時だけ。退出後の再派遣もここから。 */}
+        {needsDispatch && <TeamsBotInvite meeting={meeting} organizerId={organizerId} />}
 
         <div className={styles.twoCol}>
           <InterventionFeed meeting={meeting} />
