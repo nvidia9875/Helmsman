@@ -9,16 +9,32 @@ Flow:
 """
 from __future__ import annotations
 
+import asyncio
+import base64
+import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from pydantic import BaseModel, Field
 
 from helmsman.api.security import require_api_key
 from helmsman.core.logging import logger
 from helmsman.models.meeting import Meeting
 from helmsman.repositories.meetings import MeetingRepository
+from helmsman.services.call_buffer import (
+    get_call_registry,
+    start_session_consumer,
+    start_session_ticker,
+)
 from helmsman.services.teams_bot import (
     hangup_bot,
     invite_bot_to_teams_meeting,
@@ -120,6 +136,90 @@ _STATUS_BY_EVENT = {
     "Microsoft.Communication.CallTransferFailed": "failed",
     "Microsoft.Communication.ParticipantsUpdated": None,  # status 変えない
 }
+
+
+# ---------- ACS Media Streaming WebSocket (audio in) ----------
+
+@router.websocket("/bot/media-stream/{meeting_id}/{organizer_id}")
+async def acs_media_stream(
+    websocket: WebSocket,
+    meeting_id: str,
+    organizer_id: str,
+) -> None:
+    """ACS から会議音声 (raw PCM 16kHz/16bit/mono) を受け取る WebSocket。
+
+    ACS は JSON フレームを送ってくる:
+      - {"kind":"AudioMetadata","audioMetadata":{...}}  (最初の1フレーム)
+      - {"kind":"AudioData","audioData":{"data":"<base64>","silent":false,...}}
+
+    audio チャンクを Speech SDK に流し込み、認識結果を別 task で消費する。
+    """
+    await websocket.accept()
+    logger.info(
+        "ws.connected", meeting_id=meeting_id, organizer_id=organizer_id
+    )
+
+    registry = get_call_registry()
+    # call_connection_id は AudioMetadata の correlationId にも入るが、
+    # meeting_id ベースで 1 セッション 1 通話とする (MVP)
+    session = await registry.get_or_create(
+        call_connection_id=f"ws:{meeting_id}",
+        meeting_id=meeting_id,
+        organizer_id=organizer_id,
+    )
+
+    try:
+        session.transcriber.start()
+    except RuntimeError as e:
+        logger.error("ws.transcriber_failed", error=str(e))
+        await websocket.close(code=1011)
+        return
+
+    # 認識結果消費 + 定期 tick の 2 つの背景 task を起こす
+    if session.consumer_task is None or session.consumer_task.done():
+        session.consumer_task = asyncio.create_task(start_session_consumer(session))
+    if session.ticker_task is None or session.ticker_task.done():
+        session.ticker_task = asyncio.create_task(start_session_ticker(session))
+
+    try:
+        while True:
+            msg = await websocket.receive_text()
+            try:
+                payload = json.loads(msg)
+            except json.JSONDecodeError:
+                continue
+            kind = payload.get("kind")
+            if kind == "AudioMetadata":
+                meta = payload.get("audioMetadata", {})
+                logger.info(
+                    "ws.audio_metadata",
+                    meeting_id=meeting_id,
+                    sample_rate=meta.get("sampleRate"),
+                    channels=meta.get("channels"),
+                    encoding=meta.get("encoding"),
+                )
+            elif kind == "AudioData":
+                data = payload.get("audioData", {})
+                if data.get("silent"):
+                    continue
+                b64 = data.get("data", "")
+                if not b64:
+                    continue
+                try:
+                    pcm = base64.b64decode(b64)
+                except (ValueError, TypeError) as e:
+                    logger.warning("ws.audio_decode_failed", error=str(e))
+                    continue
+                session.transcriber.push_audio(pcm)
+    except WebSocketDisconnect:
+        logger.info("ws.disconnected", meeting_id=meeting_id)
+    except Exception as e:  # noqa: BLE001
+        logger.error("ws.error", error=str(e))
+    finally:
+        await registry.drop(session.call_connection_id)
+
+
+# ---------- ACS Call Automation webhook (no auth — ACS callback) ----------
 
 
 @router.post("/bot/callback", status_code=status.HTTP_200_OK)

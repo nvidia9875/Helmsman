@@ -163,7 +163,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
         }
       ]
       scale: {
-        minReplicas: 0 // scale-to-zero
+        // minReplicas: 1 — WebSocket (ACS media stream) は scale-to-zero と相性が悪い
+        // 通話中に replica が落ちると WS が切れる。1 replica 常時起動でアイドル料金 < $10/月。
+        minReplicas: 1
         maxReplicas: 3
         rules: [
           {

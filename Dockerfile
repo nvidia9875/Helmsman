@@ -15,6 +15,14 @@ RUN uv sync --frozen --no-dev
 # ----- runtime stage -----
 FROM python:3.14-slim AS runtime
 
+# Azure Cognitive Services Speech SDK の native 依存 + ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      libssl3 \
+      libasound2 \
+      libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
 # 安全のため non-root user
 RUN groupadd --system app && useradd --system --gid app --uid 10001 app
 

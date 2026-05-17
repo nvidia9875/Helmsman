@@ -71,6 +71,31 @@ async def invite_bot_to_teams_meeting(
 
     operation_context = _build_operation_context(meeting_id, organizer_id)
 
+    # Media streaming WebSocket: ACS は wss:// 経由で raw PCM を流してくる + 双方向 (Phase C で TTS in)
+    # path に meeting_id と organizer_id を含めて、ハンドラ側で session を引けるようにする
+    cb_base = settings.acs_callback_base_url
+    assert cb_base
+    media_ws_url = cb_base.replace("https://", "wss://").replace("http://", "ws://")
+    media_ws_url = (
+        f"{media_ws_url.rstrip('/')}/bot/media-stream/{meeting_id}/{organizer_id}"
+    )
+
+    from azure.communication.callautomation import (
+        MediaStreamingAudioChannelType,
+        MediaStreamingContentType,
+        MediaStreamingOptions,
+        StreamingTransportType,
+    )
+
+    media_options = MediaStreamingOptions(
+        transport_url=media_ws_url,
+        transport_type=StreamingTransportType.WEBSOCKET,
+        content_type=MediaStreamingContentType.AUDIO,
+        audio_channel_type=MediaStreamingAudioChannelType.MIXED,
+        start_media_streaming=True,
+        enable_bidirectional=True,  # Phase C で TTS を会議に流すために必要
+    )
+
     async with CallAutomationClient.from_connection_string(
         settings.acs_connection_string
     ) as client:
@@ -79,6 +104,7 @@ async def invite_bot_to_teams_meeting(
             call_locator=locator,
             callback_url=_callback_url(),
             operation_context=operation_context,
+            media_streaming=media_options,
         )
         connection_id = result.call_connection_id
         logger.info(
@@ -86,6 +112,7 @@ async def invite_bot_to_teams_meeting(
             meeting_id=meeting_id,
             call_connection_id=connection_id,
             teams_meeting_url=teams_meeting_url[:80],
+            media_ws=media_ws_url,
         )
         return connection_id
 
