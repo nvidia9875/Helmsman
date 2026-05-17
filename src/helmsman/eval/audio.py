@@ -122,26 +122,65 @@ def convert_to_wav_16k_mono(src: Path) -> Path:
     return tmp_path
 
 
-async def stream_utterances_from_wav(
+# Speech SDK は長 (~10 min+) ファイルで Canceled イベントを散発する。
+# 安全マージンとして 8 分でチャンク分割し、各チャンクを別 recognizer で処理する。
+WAV_CHUNK_SECONDS = 8 * 60
+SDK_STOP_TIMEOUT_SEC = 3.0
+
+
+def _split_wav(wav_path: Path, chunk_seconds: int) -> list[tuple[Path, float]]:
+    """WAV を chunk_seconds 秒ごとに分割。
+
+    Returns: [(chunk_path, chunk_start_sec)] のリスト。
+             既にチャンクサイズ以下ならそのまま [(wav_path, 0.0)] を返す。
+    呼び出し側は使い終わったらチャンク (元 wav 以外) を削除する責任を持つ。
+    """
+    duration = detect_audio_duration_seconds(wav_path)
+    if duration <= chunk_seconds + 1.0:  # 1 sec マージン
+        return [(wav_path, 0.0)]
+
+    chunks: list[tuple[Path, float]] = []
+    with wave.open(str(wav_path), "rb") as src:
+        rate = src.getframerate()
+        sampwidth = src.getsampwidth()
+        nchannels = src.getnchannels()
+        total_frames = src.getnframes()
+        frames_per_chunk = chunk_seconds * rate
+
+        for idx, start_frame in enumerate(range(0, total_frames, frames_per_chunk)):
+            src.setpos(start_frame)
+            frames_to_read = min(frames_per_chunk, total_frames - start_frame)
+            data = src.readframes(frames_to_read)
+            chunk_path = wav_path.with_suffix(f".chunk{idx:02d}.wav")
+            with wave.open(str(chunk_path), "wb") as dst:
+                dst.setnchannels(nchannels)
+                dst.setsampwidth(sampwidth)
+                dst.setframerate(rate)
+                dst.writeframes(data)
+            chunks.append((chunk_path, start_frame / rate))
+
+    logger.info(
+        "eval.audio.split",
+        src=str(wav_path),
+        chunk_count=len(chunks),
+        chunk_seconds=chunk_seconds,
+        total_duration_sec=round(duration, 1),
+    )
+    return chunks
+
+
+async def _stream_single_wav_chunk(
     wav_path: Path,
     *,
     meeting_id: str,
-    language: str = "ja-JP",
-    speaker_resolver=None,
+    language: str,
+    chunk_offset_sec: float,
+    speaker_resolver,
 ) -> AsyncIterator[Utterance]:
-    """WAV ファイルを Azure Speech SDK に流し、final 認識を Utterance として yield。
-
-    Speech SDK の認識コールバックは別 thread から呼ばれるので asyncio.Queue
-    経由でメインループに橋渡しする (StreamingTranscriber と同じパターン)。
-    """
-    settings = get_settings()
-    if not (settings.azure_speech_key and settings.azure_speech_region):
-        raise RuntimeError(
-            "Azure Speech が設定されていません (AZURE_SPEECH_KEY / AZURE_SPEECH_REGION)"
-        )
-
+    """1 つの WAV チャンクを fresh な SpeechRecognizer で消費する。"""
     import azure.cognitiveservices.speech as speechsdk  # 遅延 import
 
+    settings = get_settings()
     speech_config = speechsdk.SpeechConfig(
         subscription=settings.azure_speech_key,
         region=settings.azure_speech_region,
@@ -155,13 +194,24 @@ async def stream_utterances_from_wav(
 
     loop = asyncio.get_event_loop()
     queue: asyncio.Queue[TranscriptLine | None] = asyncio.Queue()
+    done_sentinel_sent = False
+
+    def _send_sentinel() -> None:
+        nonlocal done_sentinel_sent
+        if done_sentinel_sent:
+            return
+        done_sentinel_sent = True
+        try:
+            loop.call_soon_threadsafe(queue.put_nowait, None)
+        except RuntimeError:
+            pass
 
     def _on_recognized(evt: object) -> None:  # noqa: ANN401
         r = evt.result  # type: ignore[attr-defined]
         text = (r.text or "").strip()
         if not text:
             return
-        offset_sec = (r.offset or 0) / 10_000_000.0  # 100ns → s
+        offset_sec = chunk_offset_sec + (r.offset or 0) / 10_000_000.0
         duration_sec = max(0.5, (r.duration or 0) / 10_000_000.0)
         line = TranscriptLine(
             text=text,
@@ -174,17 +224,16 @@ async def stream_utterances_from_wav(
             pass
 
     def _on_session_stopped(_evt: object) -> None:  # noqa: ANN401
-        try:
-            loop.call_soon_threadsafe(queue.put_nowait, None)
-        except RuntimeError:
-            pass
+        _send_sentinel()
 
     def _on_canceled(evt: object) -> None:  # noqa: ANN401
-        logger.warning("eval.audio.canceled", reason=str(evt))
-        try:
-            loop.call_soon_threadsafe(queue.put_nowait, None)
-        except RuntimeError:
-            pass
+        logger.warning(
+            "eval.audio.canceled",
+            chunk=str(wav_path.name),
+            chunk_offset_sec=chunk_offset_sec,
+            reason=str(evt),
+        )
+        _send_sentinel()
 
     recognizer.recognized.connect(_on_recognized)
     recognizer.session_stopped.connect(_on_session_stopped)
@@ -200,7 +249,65 @@ async def stream_utterances_from_wav(
                 line, meeting_id=meeting_id, speaker_resolver=speaker_resolver
             )
     finally:
-        recognizer.stop_continuous_recognition_async()
+        # SDK の停止を明示待ち (Future が完了するまで)。
+        # blocking が長引かないよう asyncio.to_thread + timeout で wrap。
+        future = recognizer.stop_continuous_recognition_async()
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(future.get), timeout=SDK_STOP_TIMEOUT_SEC
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "eval.audio.stop_timeout",
+                chunk=str(wav_path.name),
+                error=str(e),
+            )
+
+
+async def stream_utterances_from_wav(
+    wav_path: Path,
+    *,
+    meeting_id: str,
+    language: str = "ja-JP",
+    speaker_resolver=None,
+    chunk_seconds: int = WAV_CHUNK_SECONDS,
+) -> AsyncIterator[Utterance]:
+    """WAV を Azure Speech SDK で文字起こしし、Utterance を yield。
+
+    8 分以上は自動チャンク分割。チャンクごとに fresh な SpeechRecognizer を起こすため、
+    長尺ファイル特有の Canceled 多発・ハングを回避できる。
+    各チャンク終了時に SDK 停止を timeout 付き ack する (`SDK_STOP_TIMEOUT_SEC`)。
+    """
+    settings = get_settings()
+    if not (settings.azure_speech_key and settings.azure_speech_region):
+        raise RuntimeError(
+            "Azure Speech が設定されていません (AZURE_SPEECH_KEY / AZURE_SPEECH_REGION)"
+        )
+
+    chunks = _split_wav(wav_path, chunk_seconds)
+    temp_chunks = [path for path, _offset in chunks if path != wav_path]
+
+    try:
+        for chunk_path, chunk_offset in chunks:
+            logger.info(
+                "eval.audio.chunk_start",
+                chunk=str(chunk_path.name),
+                chunk_offset_sec=chunk_offset,
+            )
+            async for utterance in _stream_single_wav_chunk(
+                chunk_path,
+                meeting_id=meeting_id,
+                language=language,
+                chunk_offset_sec=chunk_offset,
+                speaker_resolver=speaker_resolver,
+            ):
+                yield utterance
+            logger.info(
+                "eval.audio.chunk_done", chunk=str(chunk_path.name)
+            )
+    finally:
+        for p in temp_chunks:
+            p.unlink(missing_ok=True)
 
 
 async def stream_utterances_from_jsonl(
