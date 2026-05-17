@@ -162,6 +162,7 @@ async def run_eval(
       - tick の発火間隔は **音声時間軸** (utterance.duration_sec の累積)。
         実時間ではない (音声を一気に流し込めるので)。
     """
+    run_started_at = datetime.now(UTC)
     meeting = Meeting(
         id=str(uuid4()),
         organizer_id="eval",
@@ -170,7 +171,7 @@ async def run_eval(
         user_intensity=intensity,
         total_minutes=total_minutes,
         state=MeetingState.IN_PROGRESS,
-        started_at=datetime.now(UTC),
+        started_at=run_started_at,
     )
 
     decomposer_used = False
@@ -269,6 +270,7 @@ async def run_eval(
         utterances=utterances,
         ticks=ticks,
         all_candidates=all_candidates,
+        started_at=run_started_at,
         finished_at=datetime.now(UTC),
         audio_duration_sec=audio_duration_sec or audio_offset_accum,
     )
