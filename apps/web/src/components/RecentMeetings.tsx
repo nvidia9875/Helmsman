@@ -1,66 +1,133 @@
-import {
-  Badge,
-  Body1,
-  Button,
-  Card,
-  CardHeader,
-  Spinner,
-  Title3,
-  makeStyles,
-  tokens,
-} from '@fluentui/react-components';
+import { Button, Spinner, makeStyles } from '@fluentui/react-components';
+import { ArrowRight16Regular } from '@fluentui/react-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
+import { Skeleton } from '@/components/primitives/Skeleton';
+import { StatusDot, type StatusKind } from '@/components/primitives/StatusDot';
 import { api, type Meeting } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    width: '100%',
-    maxWidth: '720px',
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    backgroundColor: 'var(--bg-1)',
+    overflow: 'hidden',
   },
-  list: {
+  header: {
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--border-hairline)',
     display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  card: {
-    display: 'grid',
-    gridTemplateColumns: '1fr auto',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: '12px',
-    padding: '12px 16px',
   },
-  goalCol: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    minWidth: 0,
+  title: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: 'var(--text-1)',
+    margin: 0,
+  },
+  count: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '11px',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
+  },
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
+  },
+  headRow: {
+    backgroundColor: 'var(--bg-2)',
+    borderBottom: '1px solid var(--border-hairline)',
+  },
+  th: {
+    fontSize: '10px',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
+    textAlign: 'left',
+    padding: '10px 18px',
+    fontFamily: 'var(--font-mono)',
+  },
+  thRight: {
+    textAlign: 'right',
+  },
+  row: {
+    borderBottom: '1px solid var(--border-hairline)',
+    transitionProperty: 'background-color',
+    transitionDuration: '120ms',
+    ':hover': {
+      backgroundColor: 'var(--bg-2)',
+    },
+  },
+  rowLast: {
+    borderBottom: 'none',
+  },
+  td: {
+    padding: '14px 18px',
+    fontSize: '13px',
+    color: 'var(--text-1)',
+    verticalAlign: 'middle',
+  },
+  tdStatus: {
+    width: '90px',
+  },
+  tdMode: {
+    width: '120px',
+    color: 'var(--text-2)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '11px',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  tdDate: {
+    width: '140px',
+    color: 'var(--text-2)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '12px',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  tdActions: {
+    width: '180px',
+    textAlign: 'right',
   },
   goal: {
+    color: 'var(--text-1)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    maxWidth: '420px',
   },
-  meta: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: '12px',
+  goalMeta: {
+    color: 'var(--text-3)',
+    fontSize: '11px',
+    marginTop: '2px',
     display: 'flex',
     gap: '8px',
-    flexWrap: 'wrap',
   },
-  actions: {
+  statusInner: {
     display: 'flex',
+    alignItems: 'center',
     gap: '8px',
+    fontSize: '11px',
+    fontWeight: 500,
+    color: 'var(--text-2)',
+    fontFamily: 'var(--font-mono)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
   },
   empty: {
-    color: tokens.colorNeutralForeground3,
-    fontStyle: 'italic',
+    padding: '32px 18px',
     textAlign: 'center',
-    padding: '16px',
+    color: 'var(--text-3)',
+    fontSize: '13px',
+  },
+  actionGroup: {
+    display: 'inline-flex',
+    gap: '6px',
   },
 });
 
@@ -68,18 +135,22 @@ function formatDate(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleString('ja-JP', {
-    month: 'numeric',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
   });
 }
 
+const STATUS_FROM_MEETING: Record<string, { kind: StatusKind; label: string }> = {
+  in_progress: { kind: 'active', label: 'LIVE' },
+  scheduled: { kind: 'warning', label: 'SCHED' },
+  concluded: { kind: 'neutral', label: 'DONE' },
+};
+
 interface RecentMeetingsProps {
   organizerId: string;
-  /** Display behavior. "open" = navigate to meeting room; "continue" = create successor. */
   variant?: 'open' | 'continue';
-  /** Continue-mode callback: parent caller wires it to /new?parent={id}. */
   onContinue?: (meeting: Meeting) => void;
   limit?: number;
 }
@@ -99,75 +170,103 @@ export function RecentMeetings({
     staleTime: 30_000,
   });
 
-  if (isLoading) {
-    return <Spinner size="small" label="最近の会議を読み込み中..." />;
-  }
-
-  if (!meetings || meetings.length === 0) {
-    return (
-      <Body1 className={styles.empty}>
-        まだ会議がありません。最初の会議を作成しましょう。
-      </Body1>
-    );
-  }
-
   return (
     <div className={styles.root}>
-      <Title3 as="h2" style={{ margin: 0 }}>
-        🕘 最近の会議
-      </Title3>
-      <div className={styles.list}>
-        {meetings.map((m) => (
-          <Card key={m.id} className={styles.card}>
-            <div className={styles.goalCol}>
-              <CardHeader
-                header={<Body1 className={styles.goal}>{m.goal}</Body1>}
-              />
-              <div className={styles.meta}>
-                <span>{m.mode}</span>
-                <span>・</span>
-                <span>{formatDate(m.started_at)}</span>
-                {m.series_index !== null && (
-                  <Badge appearance="outline" size="small">
-                    シリーズ #{m.series_index}
-                  </Badge>
-                )}
-                {m.parent_meeting_id !== null && (
-                  <Badge appearance="tint" size="small" color="brand">
-                    継続会議
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div className={styles.actions}>
-              {variant === 'continue' && onContinue ? (
-                <Button appearance="primary" onClick={() => onContinue(m)}>
-                  この会議を引き継ぐ
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    appearance="primary"
-                    onClick={() =>
-                      navigate(
-                        `/m/${m.id}?organizer_id=${encodeURIComponent(organizerId)}`,
-                      )
-                    }
-                  >
-                    開く
-                  </Button>
-                  <Button
-                    appearance="secondary"
-                    onClick={() => navigate(`/new?parent=${encodeURIComponent(m.id)}`)}
-                  >
-                    続きから
-                  </Button>
-                </>
-              )}
-            </div>
-          </Card>
-        ))}
+      <div className={styles.header}>
+        <h2 className={styles.title}>Recent sessions</h2>
+        <span className={styles.count}>
+          {isLoading ? (
+            <Spinner size="extra-tiny" />
+          ) : (
+            `${meetings?.length ?? 0} · last ${limit}`
+          )}
+        </span>
       </div>
+
+      {isLoading ? (
+        <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} height={28} />
+          ))}
+        </div>
+      ) : !meetings || meetings.length === 0 ? (
+        <p className={styles.empty}>まだセッションがありません。「Bot を派遣」から始めてください。</p>
+      ) : (
+        <table className={styles.table}>
+          <thead>
+            <tr className={styles.headRow}>
+              <th className={styles.th} style={{ width: 90 }}>Status</th>
+              <th className={styles.th}>Goal / session</th>
+              <th className={styles.th} style={{ width: 120 }}>Mode</th>
+              <th className={styles.th} style={{ width: 140 }}>Started</th>
+              <th className={styles.th} style={{ width: 180, textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {meetings.map((m, i) => {
+              const status = STATUS_FROM_MEETING[m.state] ?? { kind: 'neutral' as StatusKind, label: m.state.toUpperCase() };
+              return (
+                <tr
+                  key={m.id}
+                  className={`${styles.row}${i === meetings.length - 1 ? ` ${styles.rowLast}` : ''}`}
+                >
+                  <td className={`${styles.td} ${styles.tdStatus}`}>
+                    <span className={styles.statusInner}>
+                      <StatusDot kind={status.kind} pulse={status.kind === 'active'} />
+                      {status.label}
+                    </span>
+                  </td>
+                  <td className={styles.td}>
+                    <div className={styles.goal} title={m.goal}>
+                      {m.goal || <span style={{ color: 'var(--text-3)' }}>(no goal)</span>}
+                    </div>
+                    {(m.series_index !== null || m.parent_meeting_id !== null) && (
+                      <div className={styles.goalMeta}>
+                        {m.series_index !== null && <span>series #{m.series_index}</span>}
+                        {m.parent_meeting_id !== null && <span>continued</span>}
+                      </div>
+                    )}
+                  </td>
+                  <td className={`${styles.td} ${styles.tdMode}`}>{m.mode}</td>
+                  <td className={`${styles.td} ${styles.tdDate}`}>{formatDate(m.started_at)}</td>
+                  <td className={`${styles.td} ${styles.tdActions}`}>
+                    <span className={styles.actionGroup}>
+                      {variant === 'continue' && onContinue ? (
+                        <Button size="small" appearance="primary" onClick={() => onContinue(m)}>
+                          引き継ぐ
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="small"
+                            appearance="primary"
+                            icon={<ArrowRight16Regular />}
+                            iconPosition="after"
+                            onClick={() =>
+                              navigate(
+                                `/m/${m.id}?organizer_id=${encodeURIComponent(organizerId)}`,
+                              )
+                            }
+                          >
+                            Open
+                          </Button>
+                          <Button
+                            size="small"
+                            appearance="subtle"
+                            onClick={() => navigate(`/new?parent=${encodeURIComponent(m.id)}`)}
+                          >
+                            Continue
+                          </Button>
+                        </>
+                      )}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
