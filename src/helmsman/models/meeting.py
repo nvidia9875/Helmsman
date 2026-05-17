@@ -66,6 +66,10 @@ class Meeting(BaseModel):
     document_ids: list[str] = Field(default_factory=list)  # 紐付く文書 ID
     document_index_name: str | None = None  # Azure AI Search / Cosmos Vector のインデックス名
 
+    # ----- グループ所属 (任意) -----
+    # 会議がグループに属する場合、グループ配下の文書が tick RAG に追加される
+    group_id: str | None = None
+
     # ----- LLM usage / コスト集計 -----
     usage: MeetingUsage = Field(default_factory=MeetingUsage)
 

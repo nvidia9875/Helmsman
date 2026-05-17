@@ -69,6 +69,7 @@ export interface Meeting {
   inherited_topic_ids: string[];
   document_ids: string[];
   document_index_name: string | null;
+  group_id: string | null;
   usage: MeetingUsage;
   teams_meeting_url: string | null;
   bot_call_connection_id: string | null;
@@ -158,6 +159,8 @@ export interface StartMeetingRequest {
   parent_meeting_id?: string | null;
   // 任意。指定すると同じリクエスト内で Bot が Teams 会議に派遣される
   teams_meeting_url?: string | null;
+  // 任意。指定するとグループ文書も AI に流れる
+  group_id?: string | null;
 }
 
 export interface TickRequest {
@@ -174,10 +177,14 @@ export interface TickResponse {
 }
 
 export type DocumentStatus = 'uploaded' | 'extracting' | 'indexed' | 'failed';
+export type DocumentScope = 'meeting' | 'group';
 
 export interface MeetingDocument {
   id: string;
-  meeting_id: string;
+  scope: DocumentScope;
+  meeting_id: string | null;
+  group_id: string | null;
+  organizer_id: string | null;
   filename: string;
   mime_type: string;
   size_bytes: number;
@@ -192,6 +199,30 @@ export interface MeetingDocument {
   error_message: string | null;
   uploaded_by: string;
   uploaded_at: string;
+}
+
+export interface MeetingGroup {
+  id: string;
+  organizer_id: string;
+  name: string;
+  description: string;
+  accent_hex: string | null;
+  document_ids: string[];
+  meeting_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateGroupRequest {
+  organizer_id: string;
+  name: string;
+  description?: string;
+  accent_hex?: string | null;
+}
+
+export interface DownloadResponse {
+  url: string;
+  expires_in_seconds: number;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -270,6 +301,122 @@ export const api = {
     }
     return (await res.json()) as MeetingDocument;
   },
+  deleteDocument: async (meetingId: string, documentId: string, organizerId: string) => {
+    const res = await fetch(
+      `${API_BASE}/meetings/${meetingId}/documents/${documentId}?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'DELETE' },
+    );
+    if (!res.ok && res.status !== 204) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+  },
+  getDocumentDownloadUrl: (
+    meetingId: string,
+    documentId: string,
+    organizerId: string,
+  ) =>
+    request<DownloadResponse>(
+      `/meetings/${meetingId}/documents/${documentId}/download?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+
+  // ---------- Groups ----------
+  listGroups: (organizerId: string, limit = 50) =>
+    request<MeetingGroup[]>(
+      `/groups?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,
+    ),
+  getGroup: (groupId: string, organizerId: string) =>
+    request<MeetingGroup>(
+      `/groups/${groupId}?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  createGroup: (req: CreateGroupRequest) =>
+    request<MeetingGroup>('/groups', { method: 'POST', body: JSON.stringify(req) }),
+  updateGroup: (
+    groupId: string,
+    organizerId: string,
+    patch: { name?: string; description?: string; accent_hex?: string | null },
+  ) =>
+    request<MeetingGroup>(
+      `/groups/${groupId}?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'PATCH', body: JSON.stringify(patch) },
+    ),
+  deleteGroup: async (groupId: string, organizerId: string) => {
+    const res = await fetch(
+      `${API_BASE}/groups/${groupId}?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'DELETE' },
+    );
+    if (!res.ok && res.status !== 204) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+  },
+  attachMeetingToGroup: (
+    groupId: string,
+    meetingId: string,
+    organizerId: string,
+  ) =>
+    request<Meeting>(
+      `/groups/${groupId}/meetings/${meetingId}?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST' },
+    ),
+  detachMeetingFromGroup: (
+    groupId: string,
+    meetingId: string,
+    organizerId: string,
+  ) =>
+    request<Meeting>(
+      `/groups/${groupId}/meetings/${meetingId}?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'DELETE' },
+    ),
+  listGroupMeetings: (groupId: string, organizerId: string) =>
+    request<Meeting[]>(
+      `/groups/${groupId}/meetings?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  listGroupDocuments: (groupId: string, organizerId: string) =>
+    request<MeetingDocument[]>(
+      `/groups/${groupId}/documents?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  uploadGroupDocument: async (
+    groupId: string,
+    organizerId: string,
+    file: File,
+    uploadedBy: string,
+  ) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('uploaded_by', uploadedBy);
+    const res = await fetch(
+      `${API_BASE}/groups/${groupId}/documents?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST', body: form },
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+    return (await res.json()) as MeetingDocument;
+  },
+  deleteGroupDocument: async (
+    groupId: string,
+    documentId: string,
+    organizerId: string,
+  ) => {
+    const res = await fetch(
+      `${API_BASE}/groups/${groupId}/documents/${documentId}?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'DELETE' },
+    );
+    if (!res.ok && res.status !== 204) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+  },
+  getGroupDocumentDownloadUrl: (
+    groupId: string,
+    documentId: string,
+    organizerId: string,
+  ) =>
+    request<DownloadResponse>(
+      `/groups/${groupId}/documents/${documentId}/download?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
   inviteBot: (id: string, organizerId: string, teamsMeetingUrl: string) =>
     request<{ meeting: Meeting; call_connection_id: string }>(
       `/meetings/${id}/bot/invite?organizer_id=${encodeURIComponent(organizerId)}`,

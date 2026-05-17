@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from helmsman.api.routers import bot, documents, health, meetings
+from helmsman.api.routers import bot, documents, groups, health, meetings
 from helmsman.core.config import get_settings
 from helmsman.core.logging import (
     configure_logging,
@@ -69,6 +69,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(meetings.router)
 app.include_router(documents.router)
+app.include_router(groups.router)
 app.include_router(bot.router)
 
 

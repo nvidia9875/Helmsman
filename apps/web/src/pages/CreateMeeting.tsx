@@ -24,6 +24,8 @@ import { StatusDot } from '@/components/primitives/StatusDot';
 import { api, type MeetingMode } from '@/lib/api';
 import { useIdentity } from '@/lib/store';
 
+const NO_GROUP = '__none__';
+
 const useStyles = makeStyles({
   root: {
     padding: '32px 28px 64px',
@@ -266,9 +268,15 @@ export function CreateMeeting() {
   const [goal, setGoal] = useState('');
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
+  const [groupId, setGroupId] = useState<string>(NO_GROUP);
   const initialName =
     displayName && displayName !== 'Anonymous' ? displayName : DEFAULT_FACILITATOR_NAME;
   const [facilitatorName, setFacilitatorName] = useState(initialName);
+
+  const { data: groups } = useQuery({
+    queryKey: ['groups', userId],
+    queryFn: () => api.listGroups(userId),
+  });
 
   const dispatchMutation = useMutation({
     mutationFn: () =>
@@ -279,6 +287,7 @@ export function CreateMeeting() {
         total_minutes: totalMinutes,
         parent_meeting_id: parentId,
         teams_meeting_url: teamsUrl.trim() || null,
+        group_id: groupId === NO_GROUP ? null : groupId,
       }),
     onSuccess: (meeting) => {
       if (facilitatorName) setName(facilitatorName);
@@ -419,6 +428,32 @@ export function CreateMeeting() {
                     />
                   </Field>
                 </div>
+              </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem value="group">
+              <AccordionHeader>
+                グループに所属させる (任意)
+              </AccordionHeader>
+              <AccordionPanel>
+                <Field hint="所属グループの共有書類を AI が参照します。">
+                  <Dropdown
+                    placeholder="グループを選ぶ (任意)"
+                    value={
+                      groupId === NO_GROUP
+                        ? ''
+                        : groups?.find((g) => g.id === groupId)?.name ?? ''
+                    }
+                    selectedOptions={[groupId]}
+                    onOptionSelect={(_, d) => setGroupId(d.optionValue ?? NO_GROUP)}
+                  >
+                    <Option value={NO_GROUP}>(なし — 単独で派遣)</Option>
+                    {(groups ?? []).map((g) => (
+                      <Option key={g.id} value={g.id}>
+                        {g.name}
+                      </Option>
+                    ))}
+                  </Dropdown>
+                </Field>
               </AccordionPanel>
             </AccordionItem>
           </Accordion>

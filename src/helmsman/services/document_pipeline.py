@@ -1,91 +1,73 @@
 """文書アップロード → 抽出 → 索引化のオーケストレーション。
 
-呼び出し側 (API router) はこの 1 関数だけ知っていればよい。
+呼び出し側 (API router) はこの 2 関数だけ知っていればよい:
+  - ingest_meeting_document : 会議スコープ
+  - ingest_group_document   : グループスコープ
 """
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from helmsman.core.logging import logger
 from helmsman.core.pricing import calculate_cost_usd
 from helmsman.core.usage import MeetingUsage
-from helmsman.models.document import Document, DocumentChunk, DocumentStatus
-from helmsman.repositories.documents import DocumentRepository
+from helmsman.models.document import (
+    Document,
+    DocumentChunk,
+    DocumentScope,
+    DocumentStatus,
+)
+from helmsman.repositories.documents import (
+    DocumentRepository,
+    GroupDocumentRepository,
+)
 from helmsman.services.blob import upload_document_blob
 from helmsman.services.chunking import chunk_text
 from helmsman.services.document_extractor import extract_text
 from helmsman.services.embeddings import embed_texts
-from helmsman.services.search_index import (
-    ensure_index,
-    upsert_chunks,
-)
+from helmsman.services.search_index import ensure_index, upsert_chunks
 
 
-async def ingest_document(
-    *,
-    meeting_id: str,
-    uploaded_by: str,
-    filename: str,
-    mime_type: str,
+async def _process_document(
+    document: Document,
     data: bytes,
-    repo: DocumentRepository,
-    usage_sink: MeetingUsage | None = None,
+    save: Callable[[Document], Awaitable[Document]],
+    usage_sink: MeetingUsage | None,
 ) -> Document:
-    """1 文書を fully process し、Document を返す。
-
-    Steps:
-      1. Document メタを Cosmos に create (status=UPLOADED)
-      2. Blob にアップロード (連携あれば)
-      3. テキスト抽出 (DocIntel or pypdf)
-      4. チャンク分割
-      5. 埋め込み生成
-      6. AI Search に upsert
-      7. status を INDEXED に更新
+    """共通パイプライン: Blob → extract → chunk → embed → search index。
 
     各 step で失敗してもユーザに 500 を返さず、status=FAILED で記録する。
     """
-    document = Document(
-        meeting_id=meeting_id,
-        filename=filename,
-        mime_type=mime_type,
-        size_bytes=len(data),
-        blob_path="",  # 後で埋める
-        uploaded_by=uploaded_by,
-    )
-    document.blob_path = f"{meeting_id}/{document.id}/{filename}"
-    await repo.create(document)
-
     try:
-        # Step 2: Blob upload
         await upload_document_blob(
-            meeting_id=meeting_id,
+            owner_id=document.owner_id,
             document_id=document.id,
-            filename=filename,
+            filename=document.filename,
             data=data,
-            content_type=mime_type,
+            content_type=document.mime_type,
         )
 
-        # Step 3: Extract text
         document.status = DocumentStatus.EXTRACTING
-        await repo.upsert(document)
-        text = await extract_text(data, mime_type, filename)
+        await save(document)
+
+        text = await extract_text(data, document.mime_type, document.filename)
         document.extracted_text = text
         document.extracted_at = datetime.now(UTC)
 
-        # Step 4: Chunk
         chunks_text = chunk_text(text)
         document.chunk_count = len(chunks_text)
         chunks = [
             DocumentChunk(
                 document_id=document.id,
-                meeting_id=meeting_id,
+                meeting_id=document.meeting_id,
+                group_id=document.group_id,
                 chunk_index=i,
                 text=t,
             )
             for i, t in enumerate(chunks_text)
         ]
 
-        # Step 5+6: Embed + index (only if all 3 services configured)
         if chunks:
             try:
                 vectors, usage = await embed_texts([c.text for c in chunks])
@@ -100,7 +82,6 @@ async def ingest_document(
                     document.index_provider = "azure_ai_search"
                     document.search_index_name = "helmsman-documents"
             except Exception as e:  # noqa: BLE001
-                # 索引化失敗は致命的ではない (extracted_text だけで RAG 可)
                 logger.warning(
                     "document.indexing_failed",
                     document_id=document.id,
@@ -108,7 +89,7 @@ async def ingest_document(
                 )
 
         document.status = DocumentStatus.INDEXED
-        await repo.upsert(document)
+        await save(document)
         return document
 
     except Exception as e:  # noqa: BLE001
@@ -120,5 +101,63 @@ async def ingest_document(
         )
         document.status = DocumentStatus.FAILED
         document.error_message = str(e)[:500]
-        await repo.upsert(document)
+        await save(document)
         return document
+
+
+async def ingest_meeting_document(
+    *,
+    meeting_id: str,
+    organizer_id: str,
+    uploaded_by: str,
+    filename: str,
+    mime_type: str,
+    data: bytes,
+    repo: DocumentRepository,
+    usage_sink: MeetingUsage | None = None,
+) -> Document:
+    """1 文書を fully process し、会議スコープで保存。"""
+    document = Document(
+        scope=DocumentScope.MEETING,
+        meeting_id=meeting_id,
+        organizer_id=organizer_id,
+        filename=filename,
+        mime_type=mime_type,
+        size_bytes=len(data),
+        blob_path=f"{meeting_id}/__placeholder__/{filename}",
+        uploaded_by=uploaded_by,
+    )
+    document.blob_path = f"{meeting_id}/{document.id}/{filename}"
+    await repo.create(document)
+    return await _process_document(document, data, repo.upsert, usage_sink)
+
+
+async def ingest_group_document(
+    *,
+    group_id: str,
+    organizer_id: str,
+    uploaded_by: str,
+    filename: str,
+    mime_type: str,
+    data: bytes,
+    repo: GroupDocumentRepository,
+    usage_sink: MeetingUsage | None = None,
+) -> Document:
+    """1 文書を fully process し、グループスコープで保存。"""
+    document = Document(
+        scope=DocumentScope.GROUP,
+        group_id=group_id,
+        organizer_id=organizer_id,
+        filename=filename,
+        mime_type=mime_type,
+        size_bytes=len(data),
+        blob_path=f"{group_id}/__placeholder__/{filename}",
+        uploaded_by=uploaded_by,
+    )
+    document.blob_path = f"{group_id}/{document.id}/{filename}"
+    await repo.create(document)
+    return await _process_document(document, data, repo.upsert, usage_sink)
+
+
+# 後方互換 alias
+ingest_document = ingest_meeting_document

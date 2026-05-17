@@ -15,6 +15,7 @@ import { BotStatusStrip } from '@/components/BotStatusStrip';
 import { CostCard } from '@/components/CostCard';
 import { DocumentUpload } from '@/components/DocumentUpload';
 import { GoalEditor } from '@/components/GoalEditor';
+import { GroupAttachment } from '@/components/GroupAttachment';
 import { InterventionFeed } from '@/components/InterventionFeed';
 import { LiveTranscript } from '@/components/LiveTranscript';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
@@ -103,6 +104,48 @@ const useStyles = makeStyles({
     borderRadius: '10px',
     overflow: 'hidden',
     backgroundColor: 'var(--bg-1)',
+  },
+  docsPanel: {
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    backgroundColor: 'var(--bg-1)',
+    overflow: 'hidden',
+  },
+  docsHeader: {
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--border-hairline)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  docsTitle: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: 'var(--text-1)',
+    margin: 0,
+  },
+  docsBody: {
+    padding: '16px 18px 18px',
+  },
+  docsCount: {
+    color: 'var(--text-3)',
+    fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
+  },
+  groupBanner: {
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    backgroundColor: 'var(--bg-2)',
+    padding: '12px 16px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  groupBannerText: {
+    fontSize: '12px',
+    color: 'var(--text-2)',
   },
   loading: {
     padding: '24px 28px',
@@ -245,8 +288,33 @@ export function MeetingRoom() {
         {showOnboarding && <OnboardingSteps />}
         {needsDispatch && <TeamsBotInvite meeting={meeting} organizerId={organizerId} />}
 
+        <section className={styles.docsPanel} aria-label="参考文書">
+          <header className={styles.docsHeader}>
+            <h2 className={styles.docsTitle}>
+              参考文書 · この会議で AI が読みます
+            </h2>
+            <span className={styles.docsCount}>
+              {meeting.document_ids.length} doc{meeting.document_ids.length === 1 ? '' : 's'}
+              {meeting.group_id ? ' + group' : ''}
+            </span>
+          </header>
+          <div className={styles.docsBody}>
+            <DocumentUpload
+              scope={{
+                kind: 'meeting',
+                meetingId: meeting.id,
+                organizerId,
+                allowRedecompose: true,
+              }}
+              uploadedBy={userId}
+            />
+          </div>
+        </section>
+
+        <GroupAttachment meeting={meeting} organizerId={organizerId} />
+
         <div className={styles.feedGrid}>
-          <InterventionFeed meeting={meeting} />
+          <InterventionFeed meeting={meeting} organizerId={organizerId} />
           <LiveTranscript meetingId={meeting.id} organizerId={organizerId} />
         </div>
 
@@ -256,16 +324,6 @@ export function MeetingRoom() {
               <AccordionHeader>LLM コスト詳細</AccordionHeader>
               <AccordionPanel>
                 <CostCard usage={meeting.usage} />
-              </AccordionPanel>
-            </AccordionItem>
-            <AccordionItem value="docs">
-              <AccordionHeader>参考文書 ({meeting.document_ids.length})</AccordionHeader>
-              <AccordionPanel>
-                <DocumentUpload
-                  meetingId={meeting.id}
-                  organizerId={organizerId}
-                  uploadedBy={userId}
-                />
               </AccordionPanel>
             </AccordionItem>
             <AccordionItem value="dev-stt">

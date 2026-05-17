@@ -1,4 +1,15 @@
-import { Badge, Body1, Button, Spinner, makeStyles } from '@fluentui/react-components';
+import {
+  Badge,
+  Body1,
+  Button,
+  Spinner,
+  makeStyles,
+} from '@fluentui/react-components';
+import {
+  ArrowDownload20Regular,
+  Delete20Regular,
+  DocumentFolderRegular,
+} from '@fluentui/react-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 
@@ -38,6 +49,14 @@ const useStyles = makeStyles({
     backgroundColor: 'rgba(91, 141, 239, 0.08)',
     color: 'var(--text-1)',
   },
+  emptyHint: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    color: 'var(--text-3)',
+    fontSize: '12px',
+    fontStyle: 'italic',
+  },
   docList: {
     display: 'flex',
     flexDirection: 'column',
@@ -45,8 +64,8 @@ const useStyles = makeStyles({
   },
   docRow: {
     display: 'grid',
-    gridTemplateColumns: '1fr auto',
-    gap: '12px',
+    gridTemplateColumns: '1fr auto auto',
+    gap: '10px',
     alignItems: 'center',
     padding: '10px 12px',
     borderRadius: '8px',
@@ -57,6 +76,7 @@ const useStyles = makeStyles({
     fontSize: '13px',
     color: 'var(--text-1)',
     fontWeight: 500,
+    wordBreak: 'break-all',
   },
   docMeta: {
     color: 'var(--text-3)',
@@ -71,6 +91,10 @@ const useStyles = makeStyles({
     display: 'flex',
     gap: '8px',
     flexWrap: 'wrap',
+  },
+  iconBtn: {
+    minWidth: '32px',
+    padding: '4px 8px',
   },
 });
 
@@ -88,34 +112,85 @@ const STATUS_LABEL: Record<DocumentStatus, string> = {
   failed: '失敗',
 };
 
+export type DocumentScopeArg =
+  | { kind: 'meeting'; meetingId: string; organizerId: string; allowRedecompose?: boolean }
+  | { kind: 'group'; groupId: string; organizerId: string };
+
 interface Props {
-  meetingId: string;
-  organizerId: string;
+  scope: DocumentScopeArg;
   uploadedBy: string;
+  /** 上に表示する説明文を上書きしたい場合 */
+  intro?: string;
 }
 
-export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
+export function DocumentUpload({ scope, uploadedBy, intro }: Props) {
   const styles = useStyles();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
 
+  const queryKey =
+    scope.kind === 'meeting'
+      ? ['documents', scope.meetingId, scope.organizerId]
+      : ['group-documents', scope.groupId, scope.organizerId];
+
   const { data: documents } = useQuery({
-    queryKey: ['documents', meetingId, organizerId],
-    queryFn: () => api.listDocuments(meetingId, organizerId),
+    queryKey,
+    queryFn: () =>
+      scope.kind === 'meeting'
+        ? api.listDocuments(scope.meetingId, scope.organizerId)
+        : api.listGroupDocuments(scope.groupId, scope.organizerId),
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => api.uploadDocument(meetingId, organizerId, file, uploadedBy),
+    mutationFn: (file: File) =>
+      scope.kind === 'meeting'
+        ? api.uploadDocument(scope.meetingId, scope.organizerId, file, uploadedBy)
+        : api.uploadGroupDocument(scope.groupId, scope.organizerId, file, uploadedBy),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents', meetingId, organizerId] });
+      queryClient.invalidateQueries({ queryKey });
+      if (scope.kind === 'meeting') {
+        queryClient.invalidateQueries({
+          queryKey: ['meeting', scope.meetingId, scope.organizerId],
+        });
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ['group', scope.groupId, scope.organizerId],
+        });
+      }
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (doc: MeetingDocument) =>
+      scope.kind === 'meeting'
+        ? api.deleteDocument(scope.meetingId, doc.id, scope.organizerId)
+        : api.deleteGroupDocument(scope.groupId, doc.id, scope.organizerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      if (scope.kind === 'meeting') {
+        queryClient.invalidateQueries({
+          queryKey: ['meeting', scope.meetingId, scope.organizerId],
+        });
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ['group', scope.groupId, scope.organizerId],
+        });
+      }
     },
   });
 
   const redecomposeMutation = useMutation({
-    mutationFn: () => api.redecompose(meetingId, organizerId),
+    mutationFn: () => {
+      if (scope.kind !== 'meeting') throw new Error('redecompose is meeting-scope only');
+      return api.redecompose(scope.meetingId, scope.organizerId);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meeting', meetingId, organizerId] });
+      if (scope.kind === 'meeting') {
+        queryClient.invalidateQueries({
+          queryKey: ['meeting', scope.meetingId, scope.organizerId],
+        });
+      }
     },
   });
 
@@ -124,10 +199,37 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
     Array.from(files).forEach((f) => uploadMutation.mutate(f));
   };
 
+  const handleDownload = async (doc: MeetingDocument) => {
+    try {
+      const res =
+        scope.kind === 'meeting'
+          ? await api.getDocumentDownloadUrl(scope.meetingId, doc.id, scope.organizerId)
+          : await api.getGroupDocumentDownloadUrl(scope.groupId, doc.id, scope.organizerId);
+      window.open(res.url, '_blank', 'noopener');
+    } catch (e) {
+      alert(`プレビュー URL の取得に失敗: ${String(e)}`);
+    }
+  };
+
+  const handleDelete = (doc: MeetingDocument) => {
+    if (!confirm(`「${doc.filename}」を削除しますか? AIの参照からも外れます。`)) return;
+    deleteMutation.mutate(doc);
+  };
+
+  const showRedecompose =
+    scope.kind === 'meeting' &&
+    (scope.allowRedecompose ?? true) &&
+    documents &&
+    documents.length > 0;
+
   return (
-    <section className={styles.root} aria-label="参考文書アップロード">
+    <section className={styles.root} aria-label="参考文書">
       <p className={styles.intro}>
-        PDF / Word / PPT / TXT / MD をドラッグ&ドロップ。アップロード後、論点を再分解できます。
+        {intro ??
+          'PDF / Word / PPT / TXT / MD をドラッグ&ドロップ。' +
+            (scope.kind === 'group'
+              ? ' グループ配下の全会議で AI が参照します。'
+              : ' アップロード後、論点を再分解できます。')}
       </p>
 
       <label
@@ -154,6 +256,13 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
         />
       </label>
 
+      {documents && documents.length === 0 && (
+        <div className={styles.emptyHint}>
+          <DocumentFolderRegular />
+          まだ書類はありません。
+        </div>
+      )}
+
       {documents && documents.length > 0 && (
         <div className={styles.docList}>
           {documents.map((d: MeetingDocument) => (
@@ -168,12 +277,33 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
               <Badge appearance="filled" color={STATUS_COLOR[d.status]}>
                 {STATUS_LABEL[d.status]}
               </Badge>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  icon={<ArrowDownload20Regular />}
+                  onClick={() => handleDownload(d)}
+                  className={styles.iconBtn}
+                  aria-label={`${d.filename} をダウンロード`}
+                  title="プレビュー / ダウンロード"
+                />
+                <Button
+                  appearance="subtle"
+                  size="small"
+                  icon={<Delete20Regular />}
+                  onClick={() => handleDelete(d)}
+                  disabled={deleteMutation.isPending}
+                  className={styles.iconBtn}
+                  aria-label={`${d.filename} を削除`}
+                  title="削除"
+                />
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {documents && documents.length > 0 && (
+      {showRedecompose && (
         <div className={styles.actions}>
           <Button
             appearance="primary"
@@ -194,6 +324,11 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
       {uploadMutation.isError && (
         <Body1 style={{ color: '#fca5a5', fontSize: 12 }}>
           アップロード失敗: {String(uploadMutation.error)}
+        </Body1>
+      )}
+      {deleteMutation.isError && (
+        <Body1 style={{ color: '#fca5a5', fontSize: 12 }}>
+          削除失敗: {String(deleteMutation.error)}
         </Body1>
       )}
     </section>

@@ -49,6 +49,9 @@ async def ensure_index() -> None:
         SimpleField(
             name="meeting_id", type=SearchFieldDataType.String, filterable=True
         ),
+        SimpleField(
+            name="group_id", type=SearchFieldDataType.String, filterable=True
+        ),
         SimpleField(name="chunk_index", type=SearchFieldDataType.Int32),
         SearchableField(name="text", type=SearchFieldDataType.String),
         SearchField(
@@ -93,7 +96,8 @@ async def upsert_chunks(chunks: list[DocumentChunk]) -> int:
         {
             "id": c.id,
             "document_id": c.document_id,
-            "meeting_id": c.meeting_id,
+            "meeting_id": c.meeting_id or "",
+            "group_id": c.group_id or "",
             "chunk_index": c.chunk_index,
             "text": c.text,
             VECTOR_FIELD: c.embedding or [],
@@ -113,9 +117,17 @@ async def upsert_chunks(chunks: list[DocumentChunk]) -> int:
 
 
 async def search_meeting_chunks(
-    *, meeting_id: str, query_embedding: list[float], top_k: int = 5
+    *,
+    meeting_id: str,
+    group_id: str | None = None,
+    query_embedding: list[float],
+    top_k: int = 5,
 ) -> list[dict]:
-    """1 会議内に絞ってベクトル検索。返り値は raw chunk dict のリスト。"""
+    """会議 (および任意で所属グループ) に絞ってベクトル検索。
+
+    group_id が渡された場合、`meeting_id eq X or group_id eq Y` で OR 検索する。
+    返り値は raw chunk dict のリスト。
+    """
     if not _is_configured() or not query_embedding:
         return []
     s = get_settings()
@@ -128,6 +140,13 @@ async def search_meeting_chunks(
         k_nearest_neighbors=top_k,
         fields=VECTOR_FIELD,
     )
+    if group_id:
+        filter_expr = (
+            f"meeting_id eq '{meeting_id}' or group_id eq '{group_id}'"
+        )
+    else:
+        filter_expr = f"meeting_id eq '{meeting_id}'"
+
     results: list[dict] = []
     async with SearchClient(
         endpoint=s.azure_search_endpoint or "",
@@ -137,7 +156,7 @@ async def search_meeting_chunks(
         response = await client.search(
             search_text=None,
             vector_queries=[vector_query],
-            filter=f"meeting_id eq '{meeting_id}'",
+            filter=filter_expr,
             top=top_k,
         )
         async for raw in response:

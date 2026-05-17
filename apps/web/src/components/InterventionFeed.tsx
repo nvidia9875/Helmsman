@@ -1,7 +1,10 @@
-import { makeStyles } from '@fluentui/react-components';
+import { Button, Spinner, makeStyles } from '@fluentui/react-components';
+import { Speaker220Regular } from '@fluentui/react-icons';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import { LevelBar } from '@/components/primitives/LevelBar';
-import type { InterventionDelivery, Meeting } from '@/lib/api';
+import { api, type InterventionDelivery, type Meeting } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
@@ -98,6 +101,38 @@ const useStyles = makeStyles({
     marginTop: '6px',
     lineHeight: 1.5,
   },
+  actionRow: {
+    marginTop: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap',
+  },
+  speakBtn: {
+    fontSize: '11px',
+    minHeight: '24px',
+    paddingTop: '2px',
+    paddingBottom: '2px',
+  },
+  speakHint: {
+    fontSize: '10px',
+    color: 'var(--text-4)',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  speakDone: {
+    fontSize: '10px',
+    color: 'var(--success)',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  speakError: {
+    fontSize: '10px',
+    color: '#fca5a5',
+    fontFamily: 'var(--font-mono)',
+  },
   empty: {
     flex: 1,
     display: 'flex',
@@ -125,9 +160,38 @@ function fmtTime(iso: string): string {
   });
 }
 
-export function InterventionFeed({ meeting }: { meeting: Meeting }) {
+interface Props {
+  meeting: Meeting;
+  organizerId: string;
+}
+
+export function InterventionFeed({ meeting, organizerId }: Props) {
   const styles = useStyles();
   const items: InterventionDelivery[] = [...meeting.delivered_interventions].reverse();
+  const botInCall = meeting.bot_status === 'in_call';
+  const [spokenIds, setSpokenIds] = useState<Record<string, boolean>>({});
+  const [errorIds, setErrorIds] = useState<Record<string, string>>({});
+  const queryClient = useQueryClient();
+
+  const speakMutation = useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      api.speakIntoMeeting(meeting.id, organizerId, text).then((res) => ({ id, res })),
+    onMutate: ({ id }) => {
+      setErrorIds((prev) => {
+        const { [id]: _omit, ...rest } = prev;
+        return rest;
+      });
+    },
+    onSuccess: ({ id }) => {
+      setSpokenIds((prev) => ({ ...prev, [id]: true }));
+      queryClient.invalidateQueries({
+        queryKey: ['meeting', meeting.id, organizerId],
+      });
+    },
+    onError: (err, variables) => {
+      setErrorIds((prev) => ({ ...prev, [variables.id]: String(err) }));
+    },
+  });
 
   return (
     <section className={styles.root} aria-label="介入フィード">
@@ -148,26 +212,75 @@ export function InterventionFeed({ meeting }: { meeting: Meeting }) {
         </div>
       ) : (
         <div className={styles.feed}>
-          {items.map((d, i) => (
-            <article
-              key={d.id}
-              className={`${styles.item}${i === items.length - 1 ? ` ${styles.itemLast}` : ''} fade-rise`}
-            >
-              <LevelBar level={d.level} />
-              <div className={styles.body}>
-                <div className={styles.topRow}>
-                  <span className={styles.agent}>
-                    {d.agent} <span className={styles.level}>· {d.level}</span>
-                  </span>
-                  <span className={styles.timestamp}>{fmtTime(d.delivered_at)}</span>
+          {items.map((d, i) => {
+            const promotable = d.level !== 'L3';
+            const spoken = spokenIds[d.id];
+            const speakingThis =
+              speakMutation.isPending && speakMutation.variables?.id === d.id;
+            const errorMsg = errorIds[d.id];
+
+            return (
+              <article
+                key={d.id}
+                className={`${styles.item}${i === items.length - 1 ? ` ${styles.itemLast}` : ''} fade-rise`}
+              >
+                <LevelBar level={d.level} />
+                <div className={styles.body}>
+                  <div className={styles.topRow}>
+                    <span className={styles.agent}>
+                      {d.agent} <span className={styles.level}>· {d.level}</span>
+                    </span>
+                    <span className={styles.timestamp}>{fmtTime(d.delivered_at)}</span>
+                  </div>
+                  <p className={styles.content}>{d.content}</p>
+                  {d.evidence_quote && (
+                    <p className={styles.evidence}>「{d.evidence_quote}」</p>
+                  )}
+
+                  {promotable && (
+                    <div className={styles.actionRow}>
+                      <Button
+                        appearance="secondary"
+                        size="small"
+                        icon={<Speaker220Regular />}
+                        className={styles.speakBtn}
+                        disabled={!botInCall || speakingThis || spoken}
+                        title={
+                          !botInCall
+                            ? 'Bot が会議に参加していないと発話できません'
+                            : spoken
+                              ? 'すでに発話済み'
+                              : 'Bot が音声で会議に介入'
+                        }
+                        onClick={() =>
+                          speakMutation.mutate({ id: d.id, text: d.content })
+                        }
+                      >
+                        {speakingThis ? (
+                          <>
+                            <Spinner size="tiny" /> 発話中…
+                          </>
+                        ) : spoken ? (
+                          '発話済み'
+                        ) : (
+                          `音声で介入 (${d.level}→L3)`
+                        )}
+                      </Button>
+                      {!botInCall && (
+                        <span className={styles.speakHint}>BOT OFFLINE</span>
+                      )}
+                      {spoken && (
+                        <span className={styles.speakDone}>SPOKEN INTO CALL</span>
+                      )}
+                      {errorMsg && (
+                        <span className={styles.speakError}>FAILED: {errorMsg}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <p className={styles.content}>{d.content}</p>
-                {d.evidence_quote && (
-                  <p className={styles.evidence}>「{d.evidence_quote}」</p>
-                )}
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>

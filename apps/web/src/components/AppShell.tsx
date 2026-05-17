@@ -1,20 +1,13 @@
-import {
-  Input,
-  Tooltip,
-  makeStyles,
-  mergeClasses,
-} from '@fluentui/react-components';
+import { Tooltip, makeStyles, mergeClasses } from '@fluentui/react-components';
 import {
   ArrowExit24Regular,
+  Folder24Regular,
   Home24Regular,
   Rocket24Regular,
-  Search24Regular,
   Settings24Regular,
 } from '@fluentui/react-icons';
 import type { ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-
-import { useIdentity } from '@/lib/store';
 
 const NAV_WIDTH = '64px';
 const TOPBAR_HEIGHT = '52px';
@@ -124,7 +117,7 @@ const useStyles = makeStyles({
     backdropFilter: 'saturate(140%) blur(12px)',
     WebkitBackdropFilter: 'saturate(140%) blur(12px)',
     display: 'grid',
-    gridTemplateColumns: '1fr minmax(220px, 380px) auto',
+    gridTemplateColumns: '1fr auto',
     alignItems: 'center',
     gap: '20px',
     padding: '0 24px',
@@ -154,13 +147,6 @@ const useStyles = makeStyles({
     color: 'var(--text-1)',
     fontWeight: 500,
   },
-  search: {
-    width: '100%',
-  },
-  searchInput: {
-    width: '100%',
-    backgroundColor: 'var(--bg-1)',
-  },
   user: {
     display: 'flex',
     alignItems: 'center',
@@ -188,19 +174,6 @@ const useStyles = makeStyles({
     borderRadius: '50%',
     backgroundColor: 'var(--success)',
     boxShadow: '0 0 8px rgba(43, 196, 138, 0.5)',
-  },
-  avatar: {
-    width: '28px',
-    height: '28px',
-    borderRadius: '999px',
-    backgroundColor: 'var(--bg-3)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '11px',
-    fontWeight: 600,
-    color: 'var(--text-1)',
-    border: '1px solid var(--border-hairline)',
   },
   content: {
     flex: 1,
@@ -247,6 +220,7 @@ interface NavEntry {
 const NAV_PRIMARY: NavEntry[] = [
   { to: '/', label: 'Overview', icon: <Home24Regular />, end: true },
   { to: '/new', label: 'Dispatch Bot', icon: <Rocket24Regular /> },
+  { to: '/groups', label: 'Groups', icon: <Folder24Regular /> },
 ];
 
 const NAV_FOOTER: NavEntry[] = [
@@ -261,6 +235,13 @@ const NAV_FOOTER: NavEntry[] = [
 function deriveCrumbs(pathname: string): { label: string; current: boolean }[] {
   if (pathname === '/') return [{ label: 'Overview', current: true }];
   if (pathname === '/new') return [{ label: 'Dispatch', current: true }];
+  if (pathname === '/groups') return [{ label: 'Groups', current: true }];
+  if (pathname.startsWith('/groups/')) {
+    return [
+      { label: 'Groups', current: false },
+      { label: 'Detail', current: true },
+    ];
+  }
   if (pathname.startsWith('/m/')) {
     if (pathname.endsWith('/join')) return [{ label: 'Join meeting', current: true }];
     return [
@@ -305,13 +286,9 @@ function NavItem({ entry, styles }: { entry: NavEntry; styles: ReturnType<typeof
 
 export function AppShell({ children }: { children: ReactNode }) {
   const styles = useStyles();
-  const { displayName, userId } = useIdentity();
   const location = useLocation();
   const navigate = useNavigate();
   const crumbs = deriveCrumbs(location.pathname);
-  const initials = (
-    displayName && displayName !== 'Anonymous' ? displayName.slice(0, 2) : userId.slice(2, 4)
-  ).toUpperCase();
 
   return (
     <div className={styles.root}>
@@ -353,24 +330,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </div>
 
-          <div className={styles.search}>
-            <Input
-              placeholder="Search sessions, agents, decisions…"
-              size="small"
-              contentBefore={<Search24Regular style={{ color: 'var(--text-3)' }} />}
-              className={styles.searchInput}
-            />
-          </div>
-
           <div className={styles.user}>
             <span className={styles.envPill}>
               <span className={styles.envDot} />
               PROD · westus2
             </span>
-            <span>{displayName !== 'Anonymous' ? displayName : 'Guest'}</span>
-            <div className={styles.avatar} aria-hidden>
-              {initials}
-            </div>
           </div>
         </header>
 

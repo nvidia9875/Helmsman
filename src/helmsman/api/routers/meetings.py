@@ -60,6 +60,8 @@ class StartMeetingRequest(BaseModel):
     parent_meeting_id: str | None = None
     # Teams 会議 URL (任意): 指定すると即時 Bot を派遣する
     teams_meeting_url: str | None = None
+    # グループ所属 (任意): 指定するとグループ文書も AI に流れる
+    group_id: str | None = None
 
 
 class UtteranceRequest(BaseModel):
@@ -164,6 +166,7 @@ async def start_meeting(
         series_index=series_index,
         inherited_topic_ids=inherited_topic_ids,
         teams_meeting_url=req.teams_meeting_url,
+        group_id=req.group_id,
     )
     if has_goal:
         _accumulate_usage(meeting.usage, [decomposer])
@@ -342,15 +345,16 @@ async def set_goal(
         meeting.mode = req.mode
     meeting.goal = req.goal
 
-    # 添付文書があれば RAG も使って分解
+    # 添付文書があれば RAG も使って分解 (group 文書も含む)
     doc_excerpts = ""
-    if meeting.document_ids:
+    if meeting.document_ids or meeting.group_id:
         try:
             doc_excerpts = await retrieve_excerpts_for_goal(
                 meeting_id=meeting_id,
                 goal=req.goal,
                 repo=DocumentRepository(),
                 usage_sink=meeting.usage,
+                group_id=meeting.group_id,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning("set_goal.excerpts_failed", error=str(e))
@@ -393,6 +397,7 @@ async def redecompose_meeting(
         goal=meeting.goal,
         repo=doc_repo,
         usage_sink=meeting.usage,
+        group_id=meeting.group_id,
     )
 
     inherited = [t for t in meeting.topics if t.state.value != "decided"]
@@ -443,12 +448,14 @@ async def tick(
     quiet = QuietActivator()
     dissent = DissentSurface()
 
-    # 文書 RAG: 文書付き会議だと CoverageTracker に excerpt を流す (DOC-5)
+    # 文書 RAG: 文書付き会議 or グループ所属会議だと CoverageTracker に excerpt を流す
     doc_excerpts: str | None = None
-    if meeting.document_ids:
+    if meeting.document_ids or meeting.group_id:
         try:
             doc_excerpts = await fetch_document_excerpts_simple(
-                meeting_id=meeting_id, repo=DocumentRepository()
+                meeting_id=meeting_id,
+                repo=DocumentRepository(),
+                group_id=meeting.group_id,
             ) or None
         except Exception as e:  # noqa: BLE001
             logger.warning("tick.doc_excerpts_failed", error=str(e))

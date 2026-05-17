@@ -6,6 +6,8 @@ import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 
 import { App } from './App';
 import { CreateMeeting } from './pages/CreateMeeting';
+import { GroupDetail } from './pages/GroupDetail';
+import { Groups } from './pages/Groups';
 import { JoinMeeting } from './pages/JoinMeeting';
 import { Landing } from './pages/Landing';
 import { MeetingRoom } from './pages/MeetingRoom';
@@ -30,6 +32,8 @@ const router = createBrowserRouter([
       { path: 'new', element: <CreateMeeting /> },
       { path: 'm/:meetingId', element: <MeetingRoom /> },
       { path: 'm/:meetingId/join', element: <JoinMeeting /> },
+      { path: 'groups', element: <Groups /> },
+      { path: 'groups/:groupId', element: <GroupDetail /> },
     ],
   },
 ]);
