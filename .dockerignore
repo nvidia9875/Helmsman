@@ -17,6 +17,7 @@ node_modules
 apps/web
 infra
 *.md
+!README.md
 tests
 .coverage
 htmlcov/
