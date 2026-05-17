@@ -1,67 +1,64 @@
 /**
- * Helmsman の Fluent UI dark theme override。
+ * Helmsman の Fluent UI dark theme override.
  *
- * 設計方針 (Linear / Vercel 風ミニマル):
- * - ニュートラル背景は純黒寄り (#0a0a0a / #111111)
- * - border は薄く (#1f1f1f / #262626)
- * - ブランド色は 1 つ (#3b82f6) — CTA と focus にだけ使う
- * - shadow / gradient は使わない
+ * "Mission Control Terminal" aesthetic — Bloomberg-density meets Linear-precision.
+ * Values mirror src/styles/global.css :root custom properties so plain CSS and
+ * Fluent components stay in sync.
  */
 import { Theme, webDarkTheme } from '@fluentui/react-components';
 
 export const helmsmanDarkTheme: Theme = {
   ...webDarkTheme,
-  // page / panel 背景
-  colorNeutralBackground1: '#0a0a0a',
-  colorNeutralBackground1Hover: '#161616',
-  colorNeutralBackground1Pressed: '#1f1f1f',
-  colorNeutralBackground2: '#111111',
-  colorNeutralBackground2Hover: '#161616',
-  colorNeutralBackground2Pressed: '#1f1f1f',
-  colorNeutralBackground3: '#161616',
-  colorNeutralBackground3Hover: '#1f1f1f',
-  colorNeutralBackground3Pressed: '#262626',
-  colorNeutralBackground4: '#0a0a0a',
-  colorNeutralBackground5: '#161616',
-  colorNeutralBackground6: '#1f1f1f',
+  // Page / panel surfaces — graded by depth
+  colorNeutralBackground1: '#08080a',
+  colorNeutralBackground1Hover: '#131319',
+  colorNeutralBackground1Pressed: '#1a1a22',
+  colorNeutralBackground2: '#0d0d10',
+  colorNeutralBackground2Hover: '#131319',
+  colorNeutralBackground2Pressed: '#1a1a22',
+  colorNeutralBackground3: '#131319',
+  colorNeutralBackground3Hover: '#1a1a22',
+  colorNeutralBackground3Pressed: '#262633',
+  colorNeutralBackground4: '#08080a',
+  colorNeutralBackground5: '#131319',
+  colorNeutralBackground6: '#1a1a22',
 
-  // 入力欄 / surface
   colorNeutralBackgroundInverted: '#ededed',
-  colorNeutralBackgroundDisabled: '#1f1f1f',
+  colorNeutralBackgroundDisabled: '#1a1a22',
 
-  // border (薄く一律)
-  colorNeutralStroke1: '#262626',
-  colorNeutralStroke1Hover: '#3a3a3a',
-  colorNeutralStroke1Pressed: '#3a3a3a',
-  colorNeutralStroke2: '#1f1f1f',
-  colorNeutralStroke3: '#1f1f1f',
-  colorTransparentStroke: '#1f1f1f',
-  colorNeutralStrokeAccessible: '#3a3a3a',
-  colorNeutralStrokeDisabled: '#262626',
+  // Borders — hairline & default
+  colorNeutralStroke1: '#262633',
+  colorNeutralStroke1Hover: '#34344a',
+  colorNeutralStroke1Pressed: '#34344a',
+  colorNeutralStroke2: '#1d1d27',
+  colorNeutralStroke3: '#1d1d27',
+  colorTransparentStroke: '#1d1d27',
+  colorNeutralStrokeAccessible: '#34344a',
+  colorNeutralStrokeDisabled: '#262633',
 
-  // text
+  // Text ladder
   colorNeutralForeground1: '#ededed',
   colorNeutralForeground1Hover: '#ffffff',
-  colorNeutralForeground2: '#999999',
-  colorNeutralForeground3: '#6e6e6e',
-  colorNeutralForeground4: '#5a5a5a',
-  colorNeutralForegroundDisabled: '#5a5a5a',
+  colorNeutralForeground2: '#9a9aac',
+  colorNeutralForeground3: '#5e5e72',
+  colorNeutralForeground4: '#3d3d4d',
+  colorNeutralForegroundDisabled: '#3d3d4d',
 
-  // ブランド色 (青 1 色のみ。CTA / focus / accent)
-  colorBrandBackground: '#3b82f6',
-  colorBrandBackgroundHover: '#2563eb',
-  colorBrandBackgroundPressed: '#1d4ed8',
-  colorBrandBackground2: '#0f172a',
-  colorBrandBackgroundInverted: '#3b82f6',
-  colorBrandStroke1: '#3b82f6',
-  colorBrandStroke2: '#1e3a8a',
-  colorBrandForeground1: '#60a5fa',
-  colorBrandForeground2: '#3b82f6',
-  colorBrandForegroundLink: '#60a5fa',
-  colorBrandForegroundLinkHover: '#93c5fd',
+  // Brand — single blue accent
+  colorBrandBackground: '#5b8def',
+  colorBrandBackgroundHover: '#4576e6',
+  colorBrandBackgroundPressed: '#3661cf',
+  colorBrandBackground2: '#101424',
+  colorBrandBackgroundInverted: '#5b8def',
+  colorBrandStroke1: '#5b8def',
+  colorBrandStroke2: '#1e2a4a',
+  colorBrandForeground1: '#83a8f3',
+  colorBrandForeground2: '#5b8def',
+  colorBrandForegroundLink: '#83a8f3',
+  colorBrandForegroundLinkHover: '#a8c1f7',
 };
 
-/** UI で使う 4px グリッドのスケール */
+/** 4px grid spacing scale */
 export const spacing = {
   xs: '4px',
   s: '8px',
@@ -73,7 +70,7 @@ export const spacing = {
   xxxxl: '64px',
 } as const;
 
-/** タイポグラフィスケール (px) */
+/** Typography scale (px). 7 sizes total — anything outside this is wrong. */
 export const fontSize = {
   xs: '11px',
   s: '12px',
