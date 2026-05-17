@@ -161,12 +161,19 @@ async def run_eval(
     tick_every_sec: float = 30.0,
     chair_id: str = "eval-chair",
     audio_duration_sec: float = 0.0,
+    doc_excerpts: str | None = None,
 ) -> EvalResult:
     """utterance_stream を消費し、定期的に tick を発火、最終結果を返す。
 
     時間軸:
       - tick の発火間隔は **音声時間軸** (utterance.duration_sec の累積)。
         実時間ではない (音声を一気に流し込めるので)。
+
+    doc_excerpts:
+      - 渡された場合、GoalDecomposer / CoverageTracker / DecisionCapture に
+        document_excerpts として注入される (RAG 経路の検証用)。本番ではこの
+        引数は Azure AI Search からの抜粋を入れる想定だが、eval では事前用意した
+        テキストをそのまま投入する。
     """
     run_started_at = datetime.now(UTC)
     meeting = Meeting(
@@ -184,7 +191,9 @@ async def run_eval(
     if goal.strip():
         try:
             decomposer = GoalDecomposer()
-            meeting.topics = await decomposer.run(goal, mode)
+            meeting.topics = await decomposer.run(
+                goal, mode, document_excerpts=doc_excerpts
+            )
             _accumulate_usage(meeting, [decomposer])
             decomposer_used = True
         except Exception as e:  # noqa: BLE001
@@ -228,7 +237,7 @@ async def run_eval(
             meeting,
             recent=recent,
             participants=participants,
-            doc_excerpts=None,
+            doc_excerpts=doc_excerpts,
             audio_now=audio_now,
         )
         tick_latency = time.monotonic() - tick_start

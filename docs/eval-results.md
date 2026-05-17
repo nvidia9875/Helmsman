@@ -20,35 +20,39 @@
 | 参加者 | 2 名 |
 | 評価日 | 2026-05-17 |
 
-## 4 通りの設定
+## 5 通りの設定
 
-| Run | Goal | LLM tier (Decision/Dissent) | STT / 入力 |
-|---|---|---|---|
-| **v1** monitor | (なし) | gpt-5.4 | Speech SDK 音声 |
-| **v2** goal-buggy | "YouTube チャンネル運営方針を決定する" | gpt-5.4 | Speech SDK 音声 (rate_limit バグの影響あり) |
-| **v2-fixed** goal | (同上) | gpt-5.4 | transcript replay (rate_limit 修正後) |
-| **v3-fixed** cheap | (同上) | **gpt-5.4-mini** (`--cheap`) | transcript replay (rate_limit 修正後) |
+| Run | Goal | LLM tier (Decision/Dissent) | 文書 | 入力 |
+|---|---|---|---|---|
+| **v1** monitor | (なし) | gpt-5.4 | — | Speech SDK 音声 |
+| **v2** goal-buggy | "YouTube チャンネル運営方針を決定する" | gpt-5.4 | — | Speech SDK 音声 (rate_limit バグの影響あり) |
+| **v2-fixed** goal | (同上) | gpt-5.4 | — | transcript replay (rate_limit 修正後) |
+| **v3-fixed** cheap | (同上) | **gpt-5.4-mini** (`--cheap`) | — | transcript replay (rate_limit 修正後) |
+| **v4** cheap+doc | (同上) | gpt-5.4-mini | **YouTube 戦略 Memo (合成 1KB)** | transcript replay (`--doc-text`) |
 
 > v2 と v2-fixed は **同じ utterances を入力**。違いは Arbiter rate_limit が
 > wall-time (バグ) か audio-time (修正後) かのみ。
+> v4 は v3-fixed と同条件 + `--doc-text` で合成文書を `document_excerpts` に注入。
 
 ## メインメトリクス比較
 
-| Metric | v1 monitor | v2 buggy | **v2-fixed** | **v3-fixed cheap** |
-|---|---:|---:|---:|---:|
-| Utterances | 173 | 173 | 173 | 173 |
-| Topics extracted | 0 | 5 | 4 | 5 |
-| **Topics decided** | — | 1 | **4** | **5** |
-| Candidates → Delivered | 13→7 | 33→11 | **26→10** | **33→15** |
-| Arbiter acceptance | 53.8 % | 33.3 % | 38.5 % | **45.5 %** |
-| **Interventions delivered** | 7 | 11 | 10 | **15** |
-| **Decisions captured** | 0 | 5 | 5 | **10** |
-| **LLM cost (USD)** | $0.0793 | $0.1801 | $0.1720 | **$0.0294** |
-| Cost / decision captured | — | $0.036 | $0.034 | **$0.003** (約 11× 安) |
-| LLM total tokens | 21,787 | 107,861 | 103,708 | 105,902 |
-| LLM calls | 25 | 104 | 98 | 100 |
-| Avg tick latency | 2.82 s | 3.34 s | 2.56 s | **2.08 s** |
-| Wall duration | 12.0 min | 12.8 min | 73 sec | 61 sec |
+| Metric | v1 monitor | v2 buggy | **v2-fixed** | **v3-fixed cheap** | **v4 cheap+doc** |
+|---|---:|---:|---:|---:|---:|
+| Utterances | 173 | 173 | 173 | 173 | 173 |
+| Topics extracted | 0 | 5 | 4 | 5 | **6** |
+| **Topics decided** | — | 1 | **4** | **5** | **4** |
+| **document_reference 付き topics** | 0/0 | 0/5 | 0/4 | 0/5 | **6/6** ✅ |
+| Candidates → Delivered | 13→7 | 33→11 | 26→10 | 33→15 | **42→17** |
+| Arbiter acceptance | 53.8 % | 33.3 % | 38.5 % | 45.5 % | 40.5 % |
+| **Interventions delivered** | 7 | 11 | 10 | 15 | **17** |
+| **Decisions captured** | 0 | 5 | 5 | 10 | **12** |
+| **DOC-6 矛盾警告 fired** | 0 | 0 | 0 | 0 | **1** ✅ |
+| **LLM cost (USD)** | $0.0793 | $0.1801 | $0.1720 | **$0.0294** | $0.0447 |
+| Cost / decision captured | — | $0.036 | $0.034 | $0.003 | **$0.0037** |
+| LLM total tokens | 21,787 | 107,861 | 103,708 | 105,902 | 159,116 |
+| LLM calls | 25 | 104 | 98 | 100 | 105 |
+| Avg tick latency | 2.82 s | 3.34 s | 2.56 s | 2.08 s | 2.91 s |
+| Wall duration | 12.0 min | 12.8 min | 73 sec | 61 sec | 81 sec |
 
 ## 介入の by-agent 分布
 
@@ -117,9 +121,25 @@ mini Steering 候補は 7 件出ていたが、Arbiter で Decision (priority 10
 
 > **更新**: 当初は「cheap モードは dev 用」と書いたが、再評価で **本番 cost-optimal 設定として推奨可** に格上げ。Dissent の reasoning depth が必要な厳格モードでのみ default 推奨。
 
-## 文書 RAG (DOC-*) は未検証
+## 文書 RAG (DOC-*) 検証 — v4 で完全動作確認
 
-3 つの run 全てで `Coverage.document_reference` は全 topic で `None`。本評価では文書を投入していないため正常動作。**RAG パスは別途、文書付き eval で検証が必要** (Phase 2 候補)。
+v4 (`--doc-text scripts/fixtures/youtube_strategy_memo.txt`) で合成戦略 Memo (1 KB) を
+注入した結果:
+
+- **6/6 topics に `document_reference` が自動付与** された
+  - 企画配分 → 「## 3H コンテンツ戦略 (Hero / Hub / Help)」
+  - 制作体制 → 「## 制作リソース」
+  - 見た目方針 → 「## 視覚デザイン」
+  - 商談導線 → 「## 商談導線」
+  - KPI 運用 → 「## KPI と継続観察」
+- **DOC-6 矛盾警告が初発火**: DecisionCapture が「⚠️ 文書と矛盾の可能性: 参考文書『YouTube Channel Strategy Memo』のKPI と継続観察では『再生回数を主目標に』としているが …」を出力。文書と会議の食い違いをリアルタイム指摘
+- GoalDecomposer の topic 名が文書のセクション名と意味的に揃う (e.g.「KPI運用」)
+- 介入数 +2 (15 → 17)、決定捕捉 +2 (10 → 12)
+- 文書注入コスト: +$0.015 (0.044 - 0.029)、入力 token +50%
+
+**結論**: RAG 経路 (document → Coverage / Decision → topics / interventions)
+は完全動作。Demo シナリオで「文書をアップ → AI が会議中にそれを引用 + 矛盾指摘」
+を再現可能。
 
 ## Speech SDK 安定性
 
@@ -151,3 +171,4 @@ uv run python scripts/eval_offline.py \
 - `commit 3a1f592`: Arbiter clock injection for eval correctness
 - `commit 1899ad1`: Speech SDK chunking + bounded stop wait
 - `commit f58b2fe`: `--cheap` flag (Decision + Dissent → mini)
+- `commit pending`: `--doc-text` flag for RAG validation

@@ -112,6 +112,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "(コスト約 75%% カット予想、品質劣化の幅を計測するモード)"
         ),
     )
+    p.add_argument(
+        "--doc-text",
+        type=Path,
+        default=None,
+        help=(
+            "RAG 検証用: plain text の文書ファイルパス。指定すると content が "
+            "document_excerpts として GoalDecomposer / Coverage / Decision に注入される "
+            "(本番は Azure AI Search からの抜粋を入れる経路を模擬)。"
+        ),
+    )
     return p.parse_args(argv)
 
 
@@ -143,6 +153,17 @@ async def _main_async(args: argparse.Namespace) -> int:
 
     converted_wav: Path | None = None  # 一時 WAV (後始末用)
     audio_duration = 0.0
+
+    doc_excerpts: str | None = None
+    if args.doc_text:
+        if not args.doc_text.exists():
+            print(f"doc-text not found: {args.doc_text}", file=sys.stderr)
+            return 5
+        doc_excerpts = args.doc_text.read_text(encoding="utf-8")
+        print(
+            f"→ doc-text: {args.doc_text} ({len(doc_excerpts)} chars)",
+            flush=True,
+        )
 
     if args.audio:
         if not args.audio.exists():
@@ -184,6 +205,7 @@ async def _main_async(args: argparse.Namespace) -> int:
             total_minutes=args.total_minutes,
             tick_every_sec=args.tick_every_sec,
             audio_duration_sec=audio_duration,
+            doc_excerpts=doc_excerpts,
         )
     finally:
         if converted_wav is not None and converted_wav.exists():
