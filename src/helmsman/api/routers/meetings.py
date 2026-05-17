@@ -360,7 +360,9 @@ async def tick(
     results = await asyncio.gather(
         coverage.run(req.recent_utterances, meeting.topics, document_excerpts=doc_excerpts),
         steering.run(meeting, req.recent_utterances, meeting.topics),
-        decision_capture.run(meeting, req.recent_utterances, meeting.topics),
+        decision_capture.run(
+            meeting, req.recent_utterances, meeting.topics, document_excerpts=doc_excerpts
+        ),
         quiet.run(meeting, req.participants, meeting.topics),
         dissent.run(meeting, req.recent_utterances),
         return_exceptions=True,

@@ -104,7 +104,9 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     results = await asyncio.gather(
         coverage.run(recent, meeting.topics, document_excerpts=doc_excerpts),
         steering.run(meeting, recent, meeting.topics),
-        decision_capture.run(meeting, recent, meeting.topics),
+        decision_capture.run(
+            meeting, recent, meeting.topics, document_excerpts=doc_excerpts
+        ),
         quiet.run(meeting, participants, meeting.topics),
         dissent.run(meeting, recent),
         return_exceptions=True,
