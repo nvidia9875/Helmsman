@@ -7,8 +7,6 @@ import {
 import {
   ArrowExit24Regular,
   Book24Regular,
-  ChannelShare24Regular,
-  DataBarVertical24Regular,
   Home24Regular,
   Rocket24Regular,
   Search24Regular,
@@ -252,11 +250,6 @@ const NAV_PRIMARY: NavEntry[] = [
   { to: '/new', label: 'Dispatch Bot', icon: <Rocket24Regular /> },
 ];
 
-const NAV_SECONDARY: NavEntry[] = [
-  { to: '/', label: 'Sessions', icon: <ChannelShare24Regular />, end: true },
-  { to: '/', label: 'Analytics', icon: <DataBarVertical24Regular />, end: true },
-];
-
 const NAV_FOOTER: NavEntry[] = [
   {
     to: 'https://github.com/nvidia9875/Helmsman',
@@ -264,7 +257,12 @@ const NAV_FOOTER: NavEntry[] = [
     icon: <Book24Regular />,
     external: true,
   },
-  { to: '/', label: 'Settings', icon: <Settings24Regular />, end: true },
+  {
+    to: 'https://learn.microsoft.com/azure/communication-services/',
+    label: 'Settings',
+    icon: <Settings24Regular />,
+    external: true,
+  },
 ];
 
 function deriveCrumbs(pathname: string): { label: string; current: boolean }[] {
@@ -335,14 +333,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           ))}
         </div>
 
-        <div className={styles.navDivider} />
-
-        <div className={styles.navSection}>
-          {NAV_SECONDARY.map((entry) => (
-            <NavItem key={entry.label} entry={entry} styles={styles} />
-          ))}
-        </div>
-
         <div className={styles.spacer} />
 
         <div className={styles.navSection}>
@@ -395,7 +385,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         {/* Mobile bottom nav */}
         <div className={styles.mobileBar}>
-          {[...NAV_PRIMARY, ...NAV_SECONDARY.slice(0, 1)].map((entry) => (
+          {NAV_PRIMARY.map((entry) => (
             <a
               key={entry.label}
               className={mergeClasses(
