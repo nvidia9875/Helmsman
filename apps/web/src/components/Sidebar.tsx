@@ -1,6 +1,6 @@
 import { Badge, Body1, Title2, makeStyles, tokens } from '@fluentui/react-components';
 
-import type { Meeting, Topic, TopicState } from '@/lib/api';
+import type { BotStatus, Meeting, Topic, TopicState } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
@@ -64,6 +64,22 @@ function stateBadgeColor(state: TopicState): 'subtle' | 'informative' | 'success
   }
 }
 
+const BOT_STATUS_LABEL: Record<BotStatus, string> = {
+  idle: '🤖 未参加',
+  connecting: '🤖 接続中…',
+  in_call: '🤖 会議に参加中',
+  disconnected: '🤖 退出済',
+  failed: '🤖 失敗',
+};
+
+const BOT_STATUS_COLOR: Record<BotStatus, 'subtle' | 'informative' | 'success' | 'warning' | 'danger'> = {
+  idle: 'subtle',
+  connecting: 'warning',
+  in_call: 'success',
+  disconnected: 'subtle',
+  failed: 'danger',
+};
+
 export function Sidebar({ meeting }: { meeting: Meeting }) {
   const styles = useStyles();
   const inheritedIds = new Set(meeting.inherited_topic_ids);
@@ -76,11 +92,16 @@ export function Sidebar({ meeting }: { meeting: Meeting }) {
           🎯 ゴール
         </Title2>
         <Body1>{meeting.goal}</Body1>
-        {meeting.series_index !== null && (
-          <Badge appearance="tint" color="brand" size="small" style={{ marginTop: 8 }}>
-            シリーズ #{meeting.series_index}
+        <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+          {meeting.series_index !== null && (
+            <Badge appearance="tint" color="brand" size="small">
+              シリーズ #{meeting.series_index}
+            </Badge>
+          )}
+          <Badge appearance="filled" color={BOT_STATUS_COLOR[meeting.bot_status]} size="small">
+            {BOT_STATUS_LABEL[meeting.bot_status]}
           </Badge>
-        )}
+        </div>
       </div>
 
       {inheritedTopics.length > 0 && (

@@ -46,6 +46,8 @@ export interface MeetingUsage {
   by_agent: Record<string, AgentUsageRollup>;
 }
 
+export type BotStatus = 'idle' | 'connecting' | 'in_call' | 'disconnected' | 'failed';
+
 export interface Meeting {
   id: string;
   organizer_id: string;
@@ -67,6 +69,16 @@ export interface Meeting {
   document_ids: string[];
   document_index_name: string | null;
   usage: MeetingUsage;
+  teams_meeting_url: string | null;
+  bot_call_connection_id: string | null;
+  bot_status: BotStatus;
+  bot_last_event_at: string | null;
+}
+
+export interface BotTranscript {
+  bot_active: boolean;
+  utterance_count: number;
+  utterances: Utterance[];
 }
 
 export interface Participant {
@@ -226,4 +238,21 @@ export const api = {
     }
     return (await res.json()) as MeetingDocument;
   },
+  inviteBot: (id: string, organizerId: string, teamsMeetingUrl: string) =>
+    request<{ meeting: Meeting; call_connection_id: string }>(
+      `/meetings/${id}/bot/invite?organizer_id=${encodeURIComponent(organizerId)}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ teams_meeting_url: teamsMeetingUrl }),
+      },
+    ),
+  leaveBot: (id: string, organizerId: string) =>
+    request<Meeting>(
+      `/meetings/${id}/bot/leave?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST' },
+    ),
+  getBotTranscript: (id: string, organizerId: string, limit = 50) =>
+    request<BotTranscript>(
+      `/meetings/${id}/bot/transcript?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,
+    ),
 };

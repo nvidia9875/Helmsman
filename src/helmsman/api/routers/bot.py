@@ -102,6 +102,38 @@ async def invite_bot(
     return InviteBotResponse(meeting=meeting, call_connection_id=connection_id)
 
 
+class BotTranscriptResponse(BaseModel):
+    bot_active: bool
+    utterance_count: int
+    utterances: list[dict[str, Any]]
+
+
+@router.get(
+    "/meetings/{meeting_id}/bot/transcript",
+    response_model=BotTranscriptResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def get_bot_transcript(
+    meeting_id: str,
+    organizer_id: str,
+    limit: int = 50,
+) -> BotTranscriptResponse:
+    """Bot がリアルタイムで拾った発言の一覧 (in-memory バッファ)。
+
+    Bot が active な間だけ意味ある値が返る。会議終了後は空。
+    """
+    registry = get_call_registry()
+    session = await registry.lookup_by_meeting(meeting_id)
+    if not session:
+        return BotTranscriptResponse(bot_active=False, utterance_count=0, utterances=[])
+    tail = session.utterances[-limit:]
+    return BotTranscriptResponse(
+        bot_active=True,
+        utterance_count=len(session.utterances),
+        utterances=[u.model_dump(mode="json") for u in tail],
+    )
+
+
 @router.post(
     "/meetings/{meeting_id}/bot/leave",
     response_model=Meeting,
