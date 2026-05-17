@@ -142,6 +142,21 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         delivery_level=delivery.level if delivery else None,
     )
 
-    # Phase C で TTS playback フックを足す:
-    # if delivery and delivery.level == "L3":
-    #     await play_intervention_audio(session, delivery)
+    # Phase C: L3 (音声介入) → bidirectional WS で TTS playback
+    if delivery and delivery.level == "L3" and session.media_ws is not None:
+        from helmsman.services.tts import speak_into_call
+
+        text = _build_l3_utterance(delivery.content, delivery.reason)
+        logger.info(
+            "call.l3_speak",
+            meeting_id=session.meeting_id,
+            text=text[:80],
+            agent=delivery.agent,
+        )
+        # blocking しない (再生中も次の tick を回せるように)
+        asyncio.create_task(speak_into_call(session.media_ws, text))
+
+
+def _build_l3_utterance(content: str, reason: str | None) -> str:
+    """会議で読み上げる短文を組み立てる。reason は付けない (long 過ぎる)。"""
+    return content.strip()

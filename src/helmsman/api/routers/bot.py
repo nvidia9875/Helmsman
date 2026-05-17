@@ -199,6 +199,8 @@ async def acs_media_stream(
         meeting_id=meeting_id,
         organizer_id=organizer_id,
     )
+    # TTS が会議に音声を送るための参照を保存
+    session.media_ws = websocket
 
     try:
         session.transcriber.start()
@@ -248,6 +250,7 @@ async def acs_media_stream(
     except Exception as e:  # noqa: BLE001
         logger.error("ws.error", error=str(e))
     finally:
+        session.media_ws = None
         await registry.drop(session.call_connection_id)
 
 

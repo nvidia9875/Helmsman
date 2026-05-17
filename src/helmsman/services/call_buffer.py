@@ -20,6 +20,8 @@ from helmsman.services.realtime_transcription import (
 )
 
 if TYPE_CHECKING:
+    from fastapi import WebSocket
+
     from helmsman.models.utterance import Utterance
 
 # 自動 tick の発火条件
@@ -38,6 +40,8 @@ class CallSession:
     last_tick_at: float | None = None
     consumer_task: asyncio.Task | None = None
     ticker_task: asyncio.Task | None = None
+    # bidirectional Media Streaming で TTS を会議に流すための WebSocket 参照
+    media_ws: "WebSocket | None" = None
 
 
 class CallRegistry:
