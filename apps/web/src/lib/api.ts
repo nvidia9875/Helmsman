@@ -273,6 +273,11 @@ export const api = {
       `/meetings/${id}/bot/leave?organizer_id=${encodeURIComponent(organizerId)}`,
       { method: 'POST' },
     ),
+  speakIntoMeeting: (id: string, organizerId: string, text: string) =>
+    request<{ accepted: boolean; detail: string }>(
+      `/meetings/${id}/bot/speak?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST', body: JSON.stringify({ text }) },
+    ),
   getBotTranscript: (id: string, organizerId: string, limit = 50) =>
     request<BotTranscript>(
       `/meetings/${id}/bot/transcript?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,

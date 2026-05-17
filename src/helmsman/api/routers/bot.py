@@ -108,6 +108,53 @@ class BotTranscriptResponse(BaseModel):
     utterances: list[dict[str, Any]]
 
 
+class SpeakRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=600)
+
+
+class SpeakResponse(BaseModel):
+    accepted: bool
+    detail: str
+
+
+@router.post(
+    "/meetings/{meeting_id}/bot/speak",
+    response_model=SpeakResponse,
+    dependencies=[Depends(require_api_key)],
+)
+async def speak_into_meeting(
+    meeting_id: str,
+    organizer_id: str,
+    req: SpeakRequest,
+    repo: MeetingRepository = Depends(get_repo),
+) -> SpeakResponse:
+    """Helmsman bot に任意のテキストを会議で発話させる (DOC-9 「読み上げ」ボタン用)。
+
+    Bot が active なセッションを持っていないと 409。
+    """
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting:
+        raise HTTPException(404, "meeting not found")
+
+    registry = get_call_registry()
+    session = await registry.lookup_by_meeting(meeting_id)
+    if not session or session.media_ws is None:
+        raise HTTPException(
+            409,
+            "bot is not in a call right now — invite the bot to a Teams meeting first",
+        )
+
+    from helmsman.services.tts import speak_into_call
+
+    asyncio.create_task(speak_into_call(session.media_ws, req.text))
+    logger.info(
+        "bot.manual_speak",
+        meeting_id=meeting_id,
+        text=req.text[:80],
+    )
+    return SpeakResponse(accepted=True, detail="TTS playback queued")
+
+
 @router.get(
     "/meetings/{meeting_id}/bot/transcript",
     response_model=BotTranscriptResponse,

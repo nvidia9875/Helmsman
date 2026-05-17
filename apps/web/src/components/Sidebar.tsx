@@ -1,5 +1,5 @@
-import { Badge, Body1, Caption1, Title2, makeStyles, tokens } from '@fluentui/react-components';
-import { useQuery } from '@tanstack/react-query';
+import { Badge, Body1, Button, Caption1, Title2, makeStyles, tokens } from '@fluentui/react-components';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { api, type BotStatus, type Meeting, type Topic, type TopicState } from '@/lib/api';
 
@@ -50,8 +50,8 @@ const useStyles = makeStyles({
     fontStyle: 'italic',
   },
   docItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
+    display: 'grid',
+    gridTemplateColumns: '1fr auto auto',
     alignItems: 'center',
     padding: '6px 10px',
     borderRadius: tokens.borderRadiusMedium,
@@ -115,6 +115,18 @@ export function Sidebar({ meeting, organizerId }: { meeting: Meeting; organizerI
     staleTime: 30_000,
   });
 
+  // DOC-9: 「🔊 読み上げ」ボタン — bot が会議内なら TTS で発話させる
+  const speakMutation = useMutation({
+    mutationFn: ({ filename, text }: { filename: string; text: string }) => {
+      const excerpt = (text ?? '').slice(0, 400).trim();
+      const utterance = excerpt
+        ? `参考文書「${filename}」の冒頭を読み上げます。${excerpt}`
+        : `参考文書「${filename}」は本文を抽出できませんでした。`;
+      return api.speakIntoMeeting(meeting.id, organizerId, utterance);
+    },
+  });
+  const botInCall = meeting.bot_status === 'in_call';
+
   return (
     <aside className={styles.root}>
       <div className={styles.goalBlock}>
@@ -176,6 +188,24 @@ export function Sidebar({ meeting, organizerId }: { meeting: Meeting; organizerI
                 >
                   {d.status}
                 </Badge>
+                <Button
+                  size="small"
+                  appearance="subtle"
+                  title={
+                    botInCall
+                      ? 'この文書の冒頭を会議で読み上げる'
+                      : 'Bot が会議に参加していないと使えません'
+                  }
+                  disabled={!botInCall || !d.extracted_text || speakMutation.isPending}
+                  onClick={() =>
+                    speakMutation.mutate({
+                      filename: d.filename,
+                      text: d.extracted_text ?? '',
+                    })
+                  }
+                >
+                  🔊
+                </Button>
               </div>
             ))}
           </div>
