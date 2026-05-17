@@ -43,7 +43,7 @@ def _async_iter(items: list[dict[str, Any]]):
         def __init__(self, src: list[dict[str, Any]]) -> None:
             self._src = iter(src)
 
-        def __aiter__(self) -> "_Iter":
+        def __aiter__(self):
             return self
 
         async def __anext__(self) -> dict[str, Any]:
