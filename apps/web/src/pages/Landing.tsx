@@ -40,13 +40,6 @@ const useStyles = makeStyles({
     color: 'var(--text-1)',
     maxWidth: '720px',
   },
-  lead: {
-    fontSize: '15px',
-    lineHeight: 1.65,
-    color: 'var(--text-2)',
-    margin: 0,
-    maxWidth: '640px',
-  },
   ctaRow: {
     display: 'flex',
     gap: '12px',
@@ -178,11 +171,6 @@ export function Landing() {
         <h1 className={styles.headline}>
           Teams 会議に AI 副操縦士を派遣する
         </h1>
-        <p className={styles.lead}>
-          会議は作らない。<strong>カレンダーに既にある</strong> Teams 会議の URL を貼ると、
-          Bot が外部参加者として join し、議論を 8 並列エージェントで分析、
-          必要なら音声で介入します。
-        </p>
         <div className={styles.ctaRow}>
           <Button
             appearance="primary"
