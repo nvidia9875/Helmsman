@@ -18,6 +18,7 @@ import { GoalEditor } from '@/components/GoalEditor';
 import { GroupAttachment } from '@/components/GroupAttachment';
 import { InterventionFeed } from '@/components/InterventionFeed';
 import { LiveTranscript } from '@/components/LiveTranscript';
+import { MeetingPulse } from '@/components/MeetingPulse';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
 import { Sidebar } from '@/components/Sidebar';
 import { TeamsBotInvite } from '@/components/TeamsBotInvite';
@@ -312,6 +313,8 @@ export function MeetingRoom() {
         </section>
 
         <GroupAttachment meeting={meeting} organizerId={organizerId} />
+
+        <MeetingPulse meeting={meeting} transcript={transcript} />
 
         <div className={styles.feedGrid}>
           <InterventionFeed meeting={meeting} organizerId={organizerId} />
