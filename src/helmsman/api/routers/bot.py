@@ -31,9 +31,11 @@ from helmsman.core.logging import logger
 from helmsman.models.meeting import Meeting
 from helmsman.repositories.meetings import MeetingRepository
 from helmsman.services.call_buffer import (
+    UNKNOWN_PARTICIPANT_ID,
     get_call_registry,
-    start_session_consumer,
+    get_or_create_transcriber,
     start_session_ticker,
+    start_transcriber_consumer,
 )
 from helmsman.services.teams_bot import (
     hangup_bot,
@@ -249,16 +251,7 @@ async def acs_media_stream(
     # TTS が会議に音声を送るための参照を保存
     session.media_ws = websocket
 
-    try:
-        session.transcriber.start()
-    except RuntimeError as e:
-        logger.error("ws.transcriber_failed", error=str(e))
-        await websocket.close(code=1011)
-        return
-
-    # 認識結果消費 + 定期 tick の 2 つの背景 task を起こす
-    if session.consumer_task is None or session.consumer_task.done():
-        session.consumer_task = asyncio.create_task(start_session_consumer(session))
+    # 定期 tick は session に 1 つあれば足りる (発言が来なくても TimeKeeper 用)
     if session.ticker_task is None or session.ticker_task.done():
         session.ticker_task = asyncio.create_task(start_session_ticker(session))
 
@@ -291,7 +284,33 @@ async def acs_media_stream(
                 except (ValueError, TypeError) as e:
                     logger.warning("ws.audio_decode_failed", error=str(e))
                     continue
-                session.transcriber.push_audio(pcm)
+
+                # UNMIXED: participantRawID が AudioData に同梱される。
+                # 形式は SDK バージョン差があるので複数キーを試す。
+                participant_id = (
+                    data.get("participantRawID")
+                    or data.get("participantRawId")
+                    or data.get("participantId")
+                    or (data.get("participant") or {}).get("rawId")
+                    or (data.get("participant") or {}).get("raw_id")
+                    or UNKNOWN_PARTICIPANT_ID
+                )
+
+                try:
+                    transcriber, is_new = get_or_create_transcriber(
+                        session, participant_id=participant_id
+                    )
+                except RuntimeError:
+                    await websocket.close(code=1011)
+                    return
+
+                if is_new:
+                    # この participant の認識結果を消費する task を起こす
+                    session.consumer_tasks[participant_id] = asyncio.create_task(
+                        start_transcriber_consumer(session, transcriber)
+                    )
+
+                transcriber.push_audio(pcm)
     except WebSocketDisconnect:
         logger.info("ws.disconnected", meeting_id=meeting_id)
     except Exception as e:  # noqa: BLE001
@@ -357,6 +376,58 @@ async def acs_callback(
             if new_status == "disconnected":
                 meeting.bot_call_connection_id = None
         await repo.upsert(meeting)
+
+        # UNMIXED: ParticipantsUpdated で participantRawID → displayName を session に学習
+        if event_type == "Microsoft.Communication.ParticipantsUpdated":
+            _refresh_participants_cache(meeting_id, data)
         handled += 1
 
     return {"handled": handled}
+
+
+def _refresh_participants_cache(meeting_id: str, event_data: dict[str, Any]) -> None:
+    """ParticipantsUpdated payload から rawId → displayName を抽出して session に保存。
+
+    ACS payload は SDK バージョン差で構造が揺れるので、複数キーを試す。
+    """
+    registry = get_call_registry()
+    # 同期コンテキストから async lookup を呼ぶのは面倒なので、registry の内部 dict を直接見る
+    session = None
+    for s in registry._sessions.values():  # noqa: SLF001
+        if s.meeting_id == meeting_id:
+            session = s
+            break
+    if session is None:
+        return
+
+    participants = event_data.get("participants") or event_data.get("Participants") or []
+    learned = 0
+    for p in participants:
+        identifier = (
+            p.get("identifier")
+            or p.get("Identifier")
+            or (p.get("participant") or {}).get("identifier")
+            or {}
+        )
+        raw_id = (
+            identifier.get("rawId")
+            or identifier.get("raw_id")
+            or identifier.get("RawId")
+            or ""
+        )
+        display = (
+            p.get("displayName")
+            or p.get("DisplayName")
+            or p.get("display_name")
+            or ""
+        )
+        if raw_id and display:
+            session.participants_by_raw_id[raw_id] = display
+            learned += 1
+    if learned:
+        logger.info(
+            "bot.participants_cached",
+            meeting_id=meeting_id,
+            learned=learned,
+            total=len(session.participants_by_raw_id),
+        )

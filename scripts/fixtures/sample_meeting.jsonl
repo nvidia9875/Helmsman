@@ -1,0 +1,7 @@
+{"text": "では、6 月 30 日のリリース可否を決めましょう。今日の議題はこれだけです。", "speaker_id": "tanaka", "offset_sec": 0, "duration_sec": 4.5}
+{"text": "正直まだ Bot 連携テストが終わっていません。安定性で不安があります。", "speaker_id": "sato", "offset_sec": 5, "duration_sec": 4.8}
+{"text": "私もまだ確信が持てません。ただ遅らせるとマーケティング側の準備が止まる。", "speaker_id": "yamada", "offset_sec": 11, "duration_sec": 5.0}
+{"text": "週末に最終 smoke test を入れて、月曜 9 時に再判断するのはどうでしょう。", "speaker_id": "tanaka", "offset_sec": 17, "duration_sec": 4.8}
+{"text": "それなら賛成です。条件付き Go ということで合意できる。", "speaker_id": "yamada", "offset_sec": 23, "duration_sec": 3.8}
+{"text": "私も賛成。月曜の判断時に sato さんから最終所見を共有してもらう前提で。", "speaker_id": "tanaka", "offset_sec": 28, "duration_sec": 5.2}
+{"text": "了解です。日曜深夜までに smoke 結果と所見をまとめます。", "speaker_id": "sato", "offset_sec": 34, "duration_sec": 4.6}

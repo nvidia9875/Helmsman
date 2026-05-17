@@ -76,6 +76,17 @@ logs/
 .claude/
 everything-claude-code/
 
+# Local audio samples (never push real meeting recordings)
+apps/*.mp3
+apps/*.m4a
+apps/*.mp4
+apps/*.wav
+*.mp3
+!scripts/fixtures/*
+
+# Eval run outputs (can be large + may contain transcripts)
+eval_runs/
+
 # Internal planning / strategy docs (not for public)
 actions.md
 meeting-helmsman.md

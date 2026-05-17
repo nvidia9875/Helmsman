@@ -92,7 +92,9 @@ async def invite_bot_to_teams_meeting(
         transport_url=media_ws_url,
         transport_type=StreamingTransportType.WEBSOCKET,
         content_type=MediaStreamingContentType.AUDIO,
-        audio_channel_type=MediaStreamingAudioChannelType.MIXED,
+        # UNMIXED: 参加者ごとに別ストリームで届く + participantRawID が
+        # AudioData frame に同梱される → 声紋識別なしで speaker_id を解決可能。
+        audio_channel_type=MediaStreamingAudioChannelType.UNMIXED,
         start_media_streaming=True,
         enable_bidirectional=True,  # Phase C で TTS を会議に流すために必要
     )

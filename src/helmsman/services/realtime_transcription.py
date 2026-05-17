@@ -16,9 +16,13 @@ from helmsman.core.logging import logger
 
 
 class TranscriptEvent(BaseModel):
-    """STT が認識した 1 フレーズ。Utterance に近いが speaker_id は ACS 側不明 (mixed)。"""
+    """STT が認識した 1 フレーズ。
+
+    UNMIXED の場合 speaker_id に participantRawID が入る。MIXED や eval だと "unknown"。
+    """
 
     text: str
+    speaker_id: str = "unknown"
     offset_ms: int = 0
     duration_ms: int = 0
     is_final: bool = True
@@ -26,10 +30,13 @@ class TranscriptEvent(BaseModel):
 
 
 class StreamingTranscriber:
-    """1 つの ACS Media Stream に紐付く STT セッション。
+    """1 つの participant 音声ストリームに紐付く STT セッション。
+
+    UNMIXED では participant ごとに 1 instance、MIXED では call 全体で 1 instance。
+    `participant_id` が認識結果の TranscriptEvent.speaker_id に渡る。
 
     Lifecycle:
-        t = StreamingTranscriber()
+        t = StreamingTranscriber(participant_id="8:orgid:abcd")
         t.start()
         t.push_audio(pcm_bytes)  # 何度でも
         async for event in t.events():
@@ -42,7 +49,8 @@ class StreamingTranscriber:
     CHANNELS = 1
     LANGUAGE = "ja-JP"
 
-    def __init__(self) -> None:
+    def __init__(self, *, participant_id: str = "unknown") -> None:
+        self.participant_id = participant_id
         self._queue: asyncio.Queue[TranscriptEvent | None] = asyncio.Queue()
         self._loop = asyncio.get_event_loop()
         self._push_stream = None  # type: ignore[assignment]
@@ -84,6 +92,7 @@ class StreamingTranscriber:
                 return
             event = TranscriptEvent(
                 text=text,
+                speaker_id=self.participant_id,
                 offset_ms=int(r.offset / 10_000),
                 duration_ms=int(r.duration / 10_000),
                 is_final=True,
@@ -142,16 +151,20 @@ def transcript_event_to_utterance(
     *,
     event: TranscriptEvent,
     meeting_id: str,
-    speaker_id: str = "unknown",
+    speaker_id: str | None = None,
 ):
-    """TranscriptEvent → Utterance (Cosmos / agents 用)。"""
+    """TranscriptEvent → Utterance (Cosmos / agents 用)。
+
+    speaker_id 引数を渡さなければ event.speaker_id をそのまま使う (UNMIXED 経路)。
+    渡された場合 (display name 解決後など) はそれを優先。
+    """
     from helmsman.models.utterance import Utterance
 
     started = event.detected_at
     duration = max(0.5, event.duration_ms / 1000.0)
     return Utterance(
         meeting_id=meeting_id,
-        speaker_id=speaker_id,
+        speaker_id=speaker_id or event.speaker_id or "unknown",
         text=event.text,
         started_at=started,
         ended_at=started + timedelta(seconds=duration),
