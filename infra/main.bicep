@@ -19,6 +19,10 @@ param location string = resourceGroup().location
 @description('既存の Azure OpenAI リソース名 (CLI で別途作成済み)')
 param existingOpenAIName string = 'aoai-helmsman-dev'
 
+@description('既存 Azure OpenAI の API キー (Container Apps に secret として注入)。Key Vault 経由が望ましいが MVP は parameter で。')
+@secure()
+param existingOpenAIKey string = ''
+
 @description('Container Apps に注入するアプリ イメージ (初回は hello world)')
 param appImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 
@@ -39,6 +43,9 @@ var appInsightsName = '${namePrefix}-ai'
 var containerAppsEnvName = '${namePrefix}-cae'
 var containerAppName = '${namePrefix}-api'
 var speechName = '${namePrefix}-speech'
+var searchName = take('${namePrefix}-search-${resourceSuffix}', 60)
+var docIntelName = take('${namePrefix}-docintel', 24)
+var staticWebAppName = '${namePrefix}-web'
 
 // ===== Modules =====
 module monitoring 'modules/monitoring.bicep' = {
@@ -82,6 +89,30 @@ module speech 'modules/speech.bicep' = {
   }
 }
 
+module search 'modules/aisearch.bicep' = {
+  name: 'search-deployment'
+  params: {
+    location: location
+    searchName: searchName
+  }
+}
+
+module docintel 'modules/docintel.bicep' = {
+  name: 'docintel-deployment'
+  params: {
+    location: location
+    docIntelName: docIntelName
+    sku: 'F0'
+  }
+}
+
+module staticwebapp 'modules/staticwebapp.bicep' = {
+  name: 'staticwebapp-deployment'
+  params: {
+    staticWebAppName: staticWebAppName
+  }
+}
+
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyvault-deployment'
   params: {
@@ -100,6 +131,15 @@ module containerApps 'modules/containerapps.bicep' = {
     logAnalyticsCustomerId: monitoring.outputs.logAnalyticsCustomerId
     logAnalyticsPrimaryKey: monitoring.outputs.logAnalyticsPrimaryKey
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
+    azureOpenAIEndpoint: 'https://${existingOpenAIName}.cognitiveservices.azure.com/'
+    azureOpenAIApiKey: existingOpenAIKey
+    cosmosEndpoint: cosmosdb.outputs.endpoint
+    cosmosKey: cosmosdb.outputs.primaryKey
+    azureStorageConnectionString: storage.outputs.connectionString
+    azureSearchEndpoint: search.outputs.endpoint
+    azureSearchKey: search.outputs.adminKey
+    azureDocIntelEndpoint: docintel.outputs.endpoint
+    azureDocIntelKey: docintel.outputs.key
   }
 }
 
@@ -128,3 +168,9 @@ output containerAppFqdn string = containerApps.outputs.fqdn
 output keyVaultUri string = keyVault.outputs.vaultUri
 output appInsightsConnectionString string = monitoring.outputs.appInsightsConnectionString
 output openAIEndpoint string = 'https://${existingOpenAIName}.cognitiveservices.azure.com/'
+output searchEndpoint string = search.outputs.endpoint
+output searchServiceName string = search.outputs.name
+output docIntelEndpoint string = docintel.outputs.endpoint
+output documentsContainerName string = storage.outputs.documentsContainerName
+output staticWebAppHostName string = staticwebapp.outputs.defaultHostName
+output staticWebAppName string = staticwebapp.outputs.name

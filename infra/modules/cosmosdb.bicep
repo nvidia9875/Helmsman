@@ -59,6 +59,10 @@ var containers = [
     name: 'interventions'
     partitionKey: '/meeting_id'
   }
+  {
+    name: 'documents'
+    partitionKey: '/meeting_id'
+  }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-11-15' = [for c in containers: {
@@ -94,3 +98,5 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
 output accountName string = cosmosAccount.name
 output endpoint string = cosmosAccount.properties.documentEndpoint
 output databaseName string = database.name
+#disable-next-line outputs-should-not-contain-secrets
+output primaryKey string = cosmosAccount.listKeys().primaryMasterKey
