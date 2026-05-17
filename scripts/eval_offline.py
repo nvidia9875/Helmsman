@@ -104,7 +104,24 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="",
         help="出力ディレクトリ名のサフィックス (省略時は timestamp のみ)",
     )
+    p.add_argument(
+        "--cheap",
+        action="store_true",
+        help=(
+            "DecisionCapture と DissentSurface を gpt-5.4-mini に落とす "
+            "(コスト約 75%% カット予想、品質劣化の幅を計測するモード)"
+        ),
+    )
     return p.parse_args(argv)
+
+
+def _apply_cheap_mode() -> None:
+    """HIGH tier agents を MINI に動的書き換え (この run のみ)。"""
+    from helmsman.agents import DecisionCapture, DissentSurface
+    from helmsman.core.llm_client import ModelTier
+
+    DecisionCapture.TIER = ModelTier.MINI
+    DissentSurface.TIER = ModelTier.MINI
 
 
 async def _main_async(args: argparse.Namespace) -> int:
@@ -116,9 +133,13 @@ async def _main_async(args: argparse.Namespace) -> int:
     print(f"→ goal: {args.goal or '(monitor mode)'}", flush=True)
     print(
         f"→ mode={args.mode} intensity={args.intensity} "
-        f"tick={args.tick_every_sec}s",
+        f"tick={args.tick_every_sec}s"
+        + (" cheap-mode" if args.cheap else ""),
         flush=True,
     )
+
+    if args.cheap:
+        _apply_cheap_mode()
 
     converted_wav: Path | None = None  # 一時 WAV (後始末用)
     audio_duration = 0.0
