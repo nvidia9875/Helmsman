@@ -1,6 +1,7 @@
-import { Badge, Body1, Title2, makeStyles, tokens } from '@fluentui/react-components';
+import { Badge, Body1, Caption1, Title2, makeStyles, tokens } from '@fluentui/react-components';
+import { useQuery } from '@tanstack/react-query';
 
-import type { BotStatus, Meeting, Topic, TopicState } from '@/lib/api';
+import { api, type BotStatus, type Meeting, type Topic, type TopicState } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
@@ -42,6 +43,27 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
     fontSize: '12px',
   },
+  docRef: {
+    marginTop: '4px',
+    color: tokens.colorBrandForeground1,
+    fontSize: '11px',
+    fontStyle: 'italic',
+  },
+  docItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '6px 10px',
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground3,
+    fontSize: '12px',
+    gap: '8px',
+  },
+  docFilename: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
 });
 
 const STATE_LABEL: Record<TopicState, string> = {
@@ -80,10 +102,18 @@ const BOT_STATUS_COLOR: Record<BotStatus, 'subtle' | 'informative' | 'success' |
   failed: 'danger',
 };
 
-export function Sidebar({ meeting }: { meeting: Meeting }) {
+export function Sidebar({ meeting, organizerId }: { meeting: Meeting; organizerId: string }) {
   const styles = useStyles();
   const inheritedIds = new Set(meeting.inherited_topic_ids);
   const inheritedTopics = meeting.topics.filter((t) => inheritedIds.has(t.id));
+
+  // DOC-8: 参考文書一覧 (meeting に紐付く Document を表示)
+  const { data: documents } = useQuery({
+    queryKey: ['documents', meeting.id, organizerId],
+    queryFn: () => api.listDocuments(meeting.id, organizerId),
+    enabled: meeting.document_ids.length > 0,
+    staleTime: 30_000,
+  });
 
   return (
     <aside className={styles.root}>
@@ -127,6 +157,31 @@ export function Sidebar({ meeting }: { meeting: Meeting }) {
         </div>
       )}
 
+      {documents && documents.length > 0 && (
+        <div className={styles.goalBlock}>
+          <Title2 as="h2" style={{ fontSize: 16, margin: 0 }}>
+            📎 参考文書 ({documents.length})
+          </Title2>
+          <Caption1 style={{ color: tokens.colorNeutralForeground3 }}>
+            CoverageTracker が引用する元データ
+          </Caption1>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+            {documents.map((d) => (
+              <div key={d.id} className={styles.docItem}>
+                <span className={styles.docFilename}>{d.filename}</span>
+                <Badge
+                  appearance="filled"
+                  size="small"
+                  color={d.status === 'indexed' ? 'success' : d.status === 'failed' ? 'danger' : 'warning'}
+                >
+                  {d.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <Title2 as="h2" style={{ fontSize: 16, marginTop: 4 }}>
         📋 論点 ({meeting.topics.length})
       </Title2>
@@ -144,6 +199,9 @@ export function Sidebar({ meeting }: { meeting: Meeting }) {
               <div>優先度: {t.priority} ／ 時間配分: {t.time_budget_pct}%</div>
               <div>{t.decision_criteria}</div>
             </div>
+            {t.document_reference && (
+              <div className={styles.docRef}>📎 {t.document_reference}</div>
+            )}
           </div>
         ))}
       </div>

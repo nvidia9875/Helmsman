@@ -88,8 +88,21 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     dissent = DissentSurface()
     recent = session.utterances[-15:]
 
+    # 文書 RAG (DOC-5): bot 会議でも CoverageTracker に excerpt を渡す
+    doc_excerpts: str | None = None
+    if meeting.document_ids:
+        try:
+            from helmsman.repositories.documents import DocumentRepository
+            from helmsman.services.rag import fetch_document_excerpts_simple
+
+            doc_excerpts = await fetch_document_excerpts_simple(
+                meeting_id=meeting.id, repo=DocumentRepository()
+            ) or None
+        except Exception as e:  # noqa: BLE001
+            logger.warning("call.doc_excerpts_failed", error=str(e))
+
     results = await asyncio.gather(
-        coverage.run(recent, meeting.topics),
+        coverage.run(recent, meeting.topics, document_excerpts=doc_excerpts),
         steering.run(meeting, recent, meeting.topics),
         decision_capture.run(meeting, recent, meeting.topics),
         quiet.run(meeting, participants, meeting.topics),

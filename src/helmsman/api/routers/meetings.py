@@ -28,7 +28,10 @@ from helmsman.models.topic import Topic
 from helmsman.models.utterance import Utterance
 from helmsman.repositories.documents import DocumentRepository
 from helmsman.repositories.meetings import MeetingRepository
-from helmsman.services.rag import retrieve_excerpts_for_goal
+from helmsman.services.rag import (
+    fetch_document_excerpts_simple,
+    retrieve_excerpts_for_goal,
+)
 
 from helmsman.api.security import require_api_key
 
@@ -277,9 +280,19 @@ async def tick(
     quiet = QuietActivator()
     dissent = DissentSurface()
 
+    # 文書 RAG: 文書付き会議だと CoverageTracker に excerpt を流す (DOC-5)
+    doc_excerpts: str | None = None
+    if meeting.document_ids:
+        try:
+            doc_excerpts = await fetch_document_excerpts_simple(
+                meeting_id=meeting_id, repo=DocumentRepository()
+            ) or None
+        except Exception as e:  # noqa: BLE001
+            logger.warning("tick.doc_excerpts_failed", error=str(e))
+
     # 全 agent を並列実行。1 つが失敗しても他は続行 (return_exceptions=True)。
     results = await asyncio.gather(
-        coverage.run(req.recent_utterances, meeting.topics),
+        coverage.run(req.recent_utterances, meeting.topics, document_excerpts=doc_excerpts),
         steering.run(meeting, req.recent_utterances, meeting.topics),
         decision_capture.run(meeting, req.recent_utterances, meeting.topics),
         quiet.run(meeting, req.participants, meeting.topics),

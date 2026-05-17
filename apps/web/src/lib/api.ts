@@ -25,6 +25,7 @@ export interface Topic {
   key_speakers: string[];
   evidence_quote: string | null;
   confidence: number;
+  document_reference: string | null;
 }
 
 export interface AgentUsageRollup {

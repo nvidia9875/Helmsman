@@ -73,3 +73,24 @@ async def retrieve_excerpts_for_goal(
 def _format_chunk(text: str) -> str:
     """検索結果のチャンクをプロンプトに貼れる形に整形。"""
     return text.strip()[:1500]
+
+
+async def fetch_document_excerpts_simple(
+    *, meeting_id: str, repo: DocumentRepository, per_doc_chars: int = 1500
+) -> str:
+    """Coverage Tracker 等が tick ごとに使う軽量版 — 文書の冒頭抜粋を結合。
+
+    AI Search を叩かないので毎 tick 呼んでも安い (Cosmos read 1 件のみ)。
+    返り値は CoverageTracker.run(document_excerpts=...) にそのまま渡せる
+    フォーマット (空文字なら呼び出し側でスキップ)。
+    """
+    documents = await repo.list_by_meeting(meeting_id)
+    if not documents:
+        return ""
+    pieces: list[str] = []
+    for doc in documents:
+        text = (doc.extracted_text or "").strip()
+        if not text:
+            continue
+        pieces.append(f"[{doc.filename}]\n{text[:per_doc_chars]}")
+    return "\n\n---\n\n".join(pieces)[: MAX_EXCERPT_CHARS]

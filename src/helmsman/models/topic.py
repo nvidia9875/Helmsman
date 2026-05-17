@@ -37,3 +37,5 @@ class Topic(BaseModel):
     key_speakers: list[str] = Field(default_factory=list)
     evidence_quote: str | None = None
     confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    # 文書 RAG: Coverage Tracker が会議内容と関連付けた文書箇所 (例: "提案書 §3 採用要件")
+    document_reference: str | None = None

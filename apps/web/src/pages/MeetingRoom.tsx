@@ -114,7 +114,7 @@ export function MeetingRoom() {
         </div>
       </div>
 
-      <Sidebar meeting={meeting} />
+      <Sidebar meeting={meeting} organizerId={organizerId} />
     </div>
   );
 }
