@@ -241,6 +241,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-ai-documentintelligence"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/7b/8115cd713e2caa5e44def85f2b7ebd02a74ae74d7113ba20bdd41fd6dd80/azure_ai_documentintelligence-1.0.2.tar.gz", hash = "sha256:4d75a2513f2839365ebabc0e0e1772f5601b3a8c9a71e75da12440da13b63484", size = 170940, upload-time = "2025-03-27T02:46:20.606Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/75/c9ec040f23082f54ffb1977ff8f364c2d21c79a640a13d1c1809e7fd6b1a/azure_ai_documentintelligence-1.0.2-py3-none-any.whl", hash = "sha256:e1fb446abbdeccc9759d897898a0fe13141ed29f9ad11fc705f951925822ed59", size = 106005, upload-time = "2025-03-27T02:46:22.356Z" },
+]
+
+[[package]]
 name = "azure-ai-projects"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -416,6 +430,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7c/7e/bfc03436b88c48f5adc21a3ebbf4392b6b7fbbfe33ef3b1e88d07ba9f380/azure_monitor_opentelemetry_exporter-1.0.0b52.tar.gz", hash = "sha256:7eac679fca32dee9e426df65f2a538161db4514fc322fc66107f7826567d86e1", size = 326179, upload-time = "2026-05-11T22:47:02.687Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a4/e8/d13e6a74c98ecc3011bce9ab09fc2e75aec48ab46288f72be57c2fa21460/azure_monitor_opentelemetry_exporter-1.0.0b52-py2.py3-none-any.whl", hash = "sha256:a38c503e5e2cc0ec8a4bf336b23cce23488719f5361a45cdd01a514080f0e7fc", size = 244751, upload-time = "2026-05-11T22:47:04.304Z" },
+]
+
+[[package]]
+name = "azure-search-documents"
+version = "12.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/59/dc/bb4db263381aa5b29414e280a8535a343d877a3831a501ef39332174c85c/azure_search_documents-12.0.0.tar.gz", hash = "sha256:8e6d73ec0ed1623083435b757e34324db65d72d4e09cca061a59fc7e90c8ddbc", size = 386222, upload-time = "2026-05-01T20:28:22.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/b1/4869a064dbb79fb4ecac684de51a8f8f7a93a315f3f9cc4bf8a65cc413cd/azure_search_documents-12.0.0-py3-none-any.whl", hash = "sha256:d88114e4179cd753845711042380a4571e7faa8619addf5e017928ebe37fc0d1", size = 352117, upload-time = "2026-05-01T20:28:23.989Z" },
 ]
 
 [[package]]
@@ -815,12 +843,14 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "azure-ai-agents" },
+    { name = "azure-ai-documentintelligence" },
     { name = "azure-ai-textanalytics" },
     { name = "azure-cognitiveservices-speech" },
     { name = "azure-cosmos" },
     { name = "azure-identity" },
     { name = "azure-mgmt-resource" },
     { name = "azure-monitor-opentelemetry" },
+    { name = "azure-search-documents" },
     { name = "azure-storage-blob" },
     { name = "fastapi" },
     { name = "httpx" },
@@ -828,7 +858,9 @@ dependencies = [
     { name = "openai" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pypdf" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "semantic-kernel" },
     { name = "structlog" },
     { name = "tenacity" },
@@ -850,12 +882,14 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "azure-ai-agents", specifier = ">=1.2.0b3" },
+    { name = "azure-ai-documentintelligence", specifier = ">=1.0.0" },
     { name = "azure-ai-textanalytics", specifier = ">=5.4.0" },
     { name = "azure-cognitiveservices-speech", specifier = ">=1.50.0" },
     { name = "azure-cosmos", specifier = ">=4.15.0" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-mgmt-resource", specifier = ">=25.0.0" },
     { name = "azure-monitor-opentelemetry", specifier = ">=1.8.8" },
+    { name = "azure-search-documents", specifier = ">=11.5.2" },
     { name = "azure-storage-blob", specifier = ">=12.29.0" },
     { name = "fastapi", specifier = ">=0.136.1" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -865,11 +899,13 @@ requires-dist = [
     { name = "openai", specifier = ">=2.37.0" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.14.1" },
+    { name = "pypdf", specifier = ">=5.1.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "pytest-httpx", marker = "extra == 'dev'", specifier = ">=0.30.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
     { name = "semantic-kernel", specifier = ">=1.42.0" },
@@ -2208,6 +2244,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1a/51/27a5ad5f939d08f690a326ef9582cda7140555180db71695f6fb747d6a36/pyopenssl-26.2.0.tar.gz", hash = "sha256:8c6fcecd1183a7fc897548dfe388b0cdb7f37e018200d8409cf33959dbe35387", size = 182195, upload-time = "2026-05-04T23:06:09.72Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/73/b8/a0e2790ae249d6f38c9f66de7a211621a7ab2650217bcd04e1262f578a56/pyopenssl-26.2.0-py3-none-any.whl", hash = "sha256:4f9d971bc5298b8bc1fab282803da04bf000c755d4ad9d99b52de2569ca19a70", size = 55823, upload-time = "2026-05-04T23:06:08.395Z" },
+]
+
+[[package]]
+name = "pypdf"
+version = "6.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bf/58/6dd97d78a4b17a7a6b9d1c6ad23895abc41f0fdc49c553cc05bdfdcc36d0/pypdf-6.11.0.tar.gz", hash = "sha256:062b51c81b0910e6d2755e99e1c5547a0a23b7d0a32322af66240d8edcfabe87", size = 6453975, upload-time = "2026-05-09T13:26:48.955Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/b1/68feb7eb3b99f0c020b414234825f4a5d70e0126c18d933770e8c93a35fc/pypdf-6.11.0-py3-none-any.whl", hash = "sha256:769394d5756d5b304c9b6bef88b54b1816b328e7e6fc9254e625529a15ed4ab8", size = 338819, upload-time = "2026-05-09T13:26:46.904Z" },
 ]
 
 [[package]]

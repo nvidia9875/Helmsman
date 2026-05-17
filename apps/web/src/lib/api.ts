@@ -27,6 +27,25 @@ export interface Topic {
   confidence: number;
 }
 
+export interface AgentUsageRollup {
+  agent_name: string;
+  model_deployment: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+  call_count: number;
+}
+
+export interface MeetingUsage {
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+  total_cost_usd: number;
+  call_count: number;
+  by_agent: Record<string, AgentUsageRollup>;
+}
+
 export interface Meeting {
   id: string;
   organizer_id: string;
@@ -41,6 +60,13 @@ export interface Meeting {
   participant_ids: string[];
   last_intervention_at: string | null;
   recent_utterance_density: number;
+  parent_meeting_id: string | null;
+  series_id: string | null;
+  series_index: number | null;
+  inherited_topic_ids: string[];
+  document_ids: string[];
+  document_index_name: string | null;
+  usage: MeetingUsage;
 }
 
 export interface Participant {
@@ -99,6 +125,7 @@ export interface StartMeetingRequest {
   mode?: MeetingMode;
   total_minutes?: number;
   user_intensity?: UserIntensity;
+  parent_meeting_id?: string | null;
 }
 
 export interface TickRequest {
@@ -112,6 +139,27 @@ export interface TickResponse {
   meeting: Meeting;
   candidates: InterventionCandidate[];
   delivery: InterventionDelivery | null;
+}
+
+export type DocumentStatus = 'uploaded' | 'extracting' | 'indexed' | 'failed';
+
+export interface MeetingDocument {
+  id: string;
+  meeting_id: string;
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  blob_container: string;
+  blob_path: string;
+  extracted_text: string | null;
+  extracted_at: string | null;
+  chunk_count: number;
+  index_provider: string | null;
+  search_index_name: string | null;
+  status: DocumentStatus;
+  error_message: string | null;
+  uploaded_by: string;
+  uploaded_at: string;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -133,9 +181,49 @@ export const api = {
     request<Meeting>('/meetings', { method: 'POST', body: JSON.stringify(req) }),
   getMeeting: (id: string, organizerId: string) =>
     request<Meeting>(`/meetings/${id}?organizer_id=${encodeURIComponent(organizerId)}`),
+  listMeetings: (organizerId: string, limit = 20) =>
+    request<Meeting[]>(
+      `/meetings?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,
+    ),
+  listSeries: (seriesId: string, organizerId: string) =>
+    request<Meeting[]>(
+      `/meetings/series/${seriesId}?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  getMeetingUsage: (id: string, organizerId: string) =>
+    request<MeetingUsage>(
+      `/meetings/${id}/usage?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
   tick: (id: string, organizerId: string, req: TickRequest) =>
     request<TickResponse>(
       `/meetings/${id}/tick?organizer_id=${encodeURIComponent(organizerId)}`,
       { method: 'POST', body: JSON.stringify(req) },
     ),
+  redecompose: (id: string, organizerId: string) =>
+    request<Meeting>(
+      `/meetings/${id}/redecompose?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST' },
+    ),
+  listDocuments: (id: string, organizerId: string) =>
+    request<MeetingDocument[]>(
+      `/meetings/${id}/documents?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  uploadDocument: async (
+    id: string,
+    organizerId: string,
+    file: File,
+    uploadedBy: string,
+  ) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('uploaded_by', uploadedBy);
+    const res = await fetch(
+      `${API_BASE}/meetings/${id}/documents?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST', body: form },
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
+    return (await res.json()) as MeetingDocument;
+  },
 };

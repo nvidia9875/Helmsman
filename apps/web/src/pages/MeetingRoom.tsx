@@ -4,6 +4,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
+import { CostCard } from '@/components/CostCard';
+import { DocumentUpload } from '@/components/DocumentUpload';
 import { Sidebar } from '@/components/Sidebar';
 import { UtteranceConsole } from '@/components/UtteranceConsole';
 import { api } from '@/lib/api';
@@ -105,6 +107,14 @@ export function MeetingRoom() {
             </Button>
           </div>
         </div>
+
+        <CostCard usage={meeting.usage} />
+
+        <DocumentUpload
+          meetingId={meeting.id}
+          organizerId={organizerId}
+          uploadedBy={userId}
+        />
 
         <UtteranceConsole
           meeting={meeting}

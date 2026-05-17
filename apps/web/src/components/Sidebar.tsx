@@ -66,6 +66,8 @@ function stateBadgeColor(state: TopicState): 'subtle' | 'informative' | 'success
 
 export function Sidebar({ meeting }: { meeting: Meeting }) {
   const styles = useStyles();
+  const inheritedIds = new Set(meeting.inherited_topic_ids);
+  const inheritedTopics = meeting.topics.filter((t) => inheritedIds.has(t.id));
 
   return (
     <aside className={styles.root}>
@@ -74,7 +76,35 @@ export function Sidebar({ meeting }: { meeting: Meeting }) {
           🎯 ゴール
         </Title2>
         <Body1>{meeting.goal}</Body1>
+        {meeting.series_index !== null && (
+          <Badge appearance="tint" color="brand" size="small" style={{ marginTop: 8 }}>
+            シリーズ #{meeting.series_index}
+          </Badge>
+        )}
       </div>
+
+      {inheritedTopics.length > 0 && (
+        <div className={styles.goalBlock}>
+          <Title2 as="h2" style={{ fontSize: 16, margin: 0 }}>
+            🔁 前回からの引き継ぎ事項 ({inheritedTopics.length})
+          </Title2>
+          <div className={styles.topicList} style={{ marginTop: 8 }}>
+            {inheritedTopics.map((t: Topic) => (
+              <div key={`inherited-${t.id}`} className={styles.topic}>
+                <div className={styles.topicHeader}>
+                  <strong>{t.name}</strong>
+                  <Badge appearance="outline" color="brand" size="small">
+                    継続
+                  </Badge>
+                </div>
+                <div className={styles.topicBody}>
+                  <div>{t.decision_criteria}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Title2 as="h2" style={{ fontSize: 16, marginTop: 4 }}>
         📋 論点 ({meeting.topics.length})

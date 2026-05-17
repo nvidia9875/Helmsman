@@ -11,9 +11,9 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { api, type MeetingMode } from '@/lib/api';
 import { useIdentity } from '@/lib/store';
@@ -30,6 +30,21 @@ const useStyles = makeStyles({
   hint: {
     color: tokens.colorNeutralForeground3,
   },
+  parentBanner: {
+    border: `1px solid ${tokens.colorBrandStroke2}`,
+    backgroundColor: tokens.colorBrandBackground2,
+    borderRadius: tokens.borderRadiusMedium,
+    padding: '12px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  inheritedList: {
+    margin: '4px 0 0',
+    paddingLeft: '20px',
+    color: tokens.colorNeutralForeground2,
+    fontSize: '13px',
+  },
 });
 
 const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '1on1', 'Kickoff'];
@@ -37,7 +52,16 @@ const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '
 export function CreateMeeting() {
   const styles = useStyles();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { userId, displayName, setName } = useIdentity();
+  const parentId = searchParams.get('parent');
+
+  const { data: parentMeeting } = useQuery({
+    queryKey: ['meeting', parentId, userId],
+    queryFn: () => api.getMeeting(parentId!, userId),
+    enabled: !!parentId,
+  });
+
   const [goal, setGoal] = useState('');
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
@@ -50,6 +74,7 @@ export function CreateMeeting() {
         goal,
         mode,
         total_minutes: totalMinutes,
+        parent_meeting_id: parentId,
       }),
     onSuccess: (meeting) => {
       if (name) setName(name);
@@ -57,14 +82,38 @@ export function CreateMeeting() {
     },
   });
 
+  const inheritedTopics = parentMeeting?.topics.filter((t) => t.state !== 'decided') ?? [];
+
   const ready = goal.trim().length >= 4 && !!name.trim();
 
   return (
     <div className={styles.root}>
-      <Title2>新しい会議を作る</Title2>
+      <Title2>{parentId ? '前回会議の続きを作る' : '新しい会議を作る'}</Title2>
       <Body1 className={styles.hint}>
         ゴールを宣言すると、AI が論点を分解して会議室を発行します。
       </Body1>
+
+      {parentMeeting && (
+        <div className={styles.parentBanner}>
+          <Body1>
+            <strong>📎 前回会議:</strong> {parentMeeting.goal}
+          </Body1>
+          {inheritedTopics.length > 0 ? (
+            <>
+              <Body1>引き継ぐ未解決論点 ({inheritedTopics.length} 件):</Body1>
+              <ul className={styles.inheritedList}>
+                {inheritedTopics.map((t) => (
+                  <li key={t.id}>{t.name}</li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <Body1 className={styles.hint}>
+              前回会議の論点は全て決定済です。新規ゴールから論点を再構成します。
+            </Body1>
+          )}
+        </div>
+      )}
 
       <Field label="あなたの表示名" required>
         <Input value={name} onChange={(_, d) => setNameLocal(d.value)} placeholder="例: 山田" />

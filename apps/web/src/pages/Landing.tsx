@@ -11,6 +11,9 @@ import {
 import { Sparkle24Filled } from '@fluentui/react-icons';
 import { useNavigate } from 'react-router-dom';
 
+import { RecentMeetings } from '@/components/RecentMeetings';
+import { useIdentity } from '@/lib/store';
+
 const useStyles = makeStyles({
   root: {
     minHeight: '100vh',
@@ -57,6 +60,7 @@ const useStyles = makeStyles({
 export function Landing() {
   const styles = useStyles();
   const navigate = useNavigate();
+  const { userId } = useIdentity();
 
   return (
     <div className={styles.root}>
@@ -103,6 +107,8 @@ export function Landing() {
           <CardHeader header={<Title3>🗳️ 決定キャプチャ</Title3>} description="決まった瞬間を構造化記録。" />
         </Card>
       </div>
+
+      <RecentMeetings organizerId={userId} />
     </div>
   );
 }

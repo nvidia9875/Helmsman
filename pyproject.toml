@@ -19,6 +19,8 @@ dependencies = [
     "azure-cosmos>=4.15.0",
     "azure-cognitiveservices-speech>=1.50.0",
     "azure-ai-textanalytics>=5.4.0",
+    "azure-ai-documentintelligence>=1.0.0",
+    "azure-search-documents>=11.5.2",
     "azure-storage-blob>=12.29.0",
     "azure-mgmt-resource>=25.0.0",
 
@@ -28,8 +30,12 @@ dependencies = [
     # Web framework / API
     "fastapi>=0.136.1",
     "uvicorn[standard]>=0.47.0",
+    "python-multipart>=0.0.20",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.1",
+
+    # 文書テキスト抽出 (Azure DocIntel が無い dev 環境のフォールバック)
+    "pypdf>=5.1.0",
 
     # Async / utility
     "httpx>=0.28.1",

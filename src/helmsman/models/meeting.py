@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from helmsman.core.usage import MeetingUsage
 from helmsman.models.topic import Topic
 
 
@@ -63,6 +64,9 @@ class Meeting(BaseModel):
     # ----- 文書グラウンディング -----
     document_ids: list[str] = Field(default_factory=list)  # 紐付く文書 ID
     document_index_name: str | None = None  # Azure AI Search / Cosmos Vector のインデックス名
+
+    # ----- LLM usage / コスト集計 -----
+    usage: MeetingUsage = Field(default_factory=MeetingUsage)
 
     @property
     def time_remaining_pct(self) -> float:

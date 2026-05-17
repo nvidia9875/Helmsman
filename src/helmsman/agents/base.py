@@ -15,6 +15,7 @@ from tenacity import (
 
 from helmsman.core.llm_client import ModelTier, get_client, get_deployment
 from helmsman.core.logging import logger
+from helmsman.core.usage import UsageRecord
 
 # LLM の再試行ポリシー (transient 失敗のみ)
 _RETRYABLE = (RateLimitError, APITimeoutError, APIConnectionError)
@@ -29,6 +30,10 @@ class LLMAgent:
         TIER: ModelTier (HIGH / MINI)
 
     Then call ``self._chat(user_text, json_mode=True)`` from your run() method.
+
+    後段の集計ループは ``agent.last_usage`` を読んで Meeting に積み上げる
+    (`src/helmsman/core/usage.py` 参照)。LLM を呼ばなかった agent (TimeKeeper)
+    や呼び出し失敗ケースでは ``last_usage`` は None のまま。
     """
 
     AGENT_NAME: str = "BaseAgent"
@@ -39,6 +44,7 @@ class LLMAgent:
         self.client = get_client()
         self.deployment = get_deployment(self.TIER)
         self.log = logger.bind(agent=self.AGENT_NAME, deployment=self.deployment)
+        self.last_usage: UsageRecord | None = None
 
     @retry(
         stop=stop_after_attempt(3),
@@ -72,7 +78,17 @@ class LLMAgent:
 
         r = await self.client.chat.completions.create(**kwargs)
         content = r.choices[0].message.content or ""
-        self.log.debug("llm.completed", tokens=r.usage.total_tokens if r.usage else None)
+        if r.usage:
+            self.last_usage = UsageRecord(
+                agent_name=self.AGENT_NAME,
+                model_deployment=self.deployment,
+                prompt_tokens=r.usage.prompt_tokens,
+                completion_tokens=r.usage.completion_tokens,
+                total_tokens=r.usage.total_tokens,
+            )
+            self.log.debug("llm.completed", tokens=r.usage.total_tokens)
+        else:
+            self.log.debug("llm.completed", tokens=None)
         return content
 
     async def _chat_json(

@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     azure_openai_deployment_high: str = "gpt-5.4"
     azure_openai_deployment_mini: str = "gpt-5.4-mini"
     azure_openai_deployment_realtime: str = "gpt-realtime-1.5"
+    azure_openai_deployment_embedding: str = "text-embedding-3-small"
+
+    # ----- Azure AI Search (文書 RAG) -----
+    azure_search_endpoint: str | None = None
+    azure_search_key: str | None = None
+    azure_search_index_name: str = "helmsman-documents"
+
+    # ----- Azure AI Document Intelligence -----
+    azure_docintel_endpoint: str | None = None
+    azure_docintel_key: str | None = None
 
     # ----- Azure AI Speech -----
     azure_speech_key: str | None = None

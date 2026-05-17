@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from helmsman.api.routers import health, meetings
+from helmsman.api.routers import documents, health, meetings
 from helmsman.core.config import get_settings
 from helmsman.core.logging import configure_logging, logger
 
@@ -42,6 +42,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(meetings.router)
+app.include_router(documents.router)
 
 
 @app.get("/")
