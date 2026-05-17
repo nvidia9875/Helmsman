@@ -1,0 +1,57 @@
+name: Deploy API to Container Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Dockerfile'
+      - '.github/workflows/api-deploy.yml'
+  workflow_dispatch:
+
+env:
+  RESOURCE_GROUP: rg-helmsman-dev
+  CONTAINER_APP_NAME: helmsman-dev-api
+  ACR_NAME: helmsmandev # 必要なら ACR を作成して使う
+  IMAGE_TAG: ${{ github.sha }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # OIDC で Azure 認証 (Service Principal は GitHub secrets に登録)
+      - name: Azure Login
+        if: env.AZURE_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Skip deploy if no Azure creds
+        if: env.AZURE_CLIENT_ID == ''
+        run: echo "Azure secrets not configured yet — skip deploy"
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Build and Deploy Container Image
+        if: env.AZURE_CLIENT_ID != ''
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          az containerapp up \
+            --name $CONTAINER_APP_NAME \
+            --resource-group $RESOURCE_GROUP \
+            --source . \
+            --ingress external \
+            --target-port 8000

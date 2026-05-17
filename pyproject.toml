@@ -1,34 +1,44 @@
 [project]
 name = "helmsman"
 version = "0.1.0"
-description = "Helmsman — Goal-driven AI meeting facilitator for Microsoft Teams (Microsoft Agent Hackathon 2026)"
+description = "Helmsman — Goal-driven AI meeting facilitator for any meeting platform (Microsoft Agent Hackathon 2026)"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 authors = [
     { name = "shun", email = "s.shunsuke9875@gmail.com" },
 ]
 license = { text = "MIT" }
 dependencies = [
-    # Azure / Microsoft AI
-    "openai>=1.30.0",
-    "azure-identity>=1.17.0",
-    "azure-cosmos>=4.7.0",
-    "azure-ai-textanalytics>=5.3.0",
-    "azure-cognitiveservices-speech>=1.40.0",
-    "azure-storage-blob>=12.20.0",
-    "azure-mgmt-resource>=23.1.0",
-    # Web framework / API
-    "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
-    "pydantic>=2.9.0",
-    "pydantic-settings>=2.5.0",
+    # Microsoft AI / Azure OpenAI
+    "openai>=2.37.0",
+    "semantic-kernel>=1.42.0",   # azure-ai-projects/agents は SK の依存解決に任せる
+    "azure-ai-agents>=1.2.0b3",  # SK 1.42 が要求する pre-release
+
+    # Azure SDKs
+    "azure-identity>=1.25.3",
+    "azure-cosmos>=4.15.0",
+    "azure-cognitiveservices-speech>=1.50.0",
+    "azure-ai-textanalytics>=5.4.0",
+    "azure-storage-blob>=12.29.0",
+    "azure-mgmt-resource>=25.0.0",
+
     # Microsoft Graph
-    "msgraph-sdk>=1.5.0",
+    "msgraph-sdk>=1.57.0",
+
+    # Web framework / API
+    "fastapi>=0.136.1",
+    "uvicorn[standard]>=0.47.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+
     # Async / utility
-    "httpx>=0.27.0",
-    "tenacity>=9.0.0",
-    "python-dotenv>=1.0.0",
-    "structlog>=24.4.0",
+    "httpx>=0.28.1",
+    "tenacity>=9.1.4",
+    "python-dotenv>=1.2.2",
+    "structlog>=25.5.0",
+
+    # Observability (azure-monitor-opentelemetry が opentelemetry-instrumentation-fastapi を間接で連れてくる)
+    "azure-monitor-opentelemetry>=1.8.8",
 ]
 
 [project.optional-dependencies]
@@ -53,7 +63,7 @@ package = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
