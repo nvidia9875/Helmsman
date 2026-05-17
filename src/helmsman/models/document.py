@@ -60,7 +60,7 @@ class Document(BaseModel):
     uploaded_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @model_validator(mode="after")
-    def _exactly_one_owner(self) -> "Document":
+    def _exactly_one_owner(self) -> Document:
         if self.scope == DocumentScope.MEETING and not self.meeting_id:
             raise ValueError("meeting_id required when scope=meeting")
         if self.scope == DocumentScope.GROUP and not self.group_id:
