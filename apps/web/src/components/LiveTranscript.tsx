@@ -1,40 +1,89 @@
-import { Caption1, makeStyles, tokens } from '@fluentui/react-components';
+import { makeStyles } from '@fluentui/react-components';
 import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 
-import { Section } from '@/components/primitives/Section';
+import { StatusDot } from '@/components/primitives/StatusDot';
 import { api } from '@/lib/api';
 
 const useStyles = makeStyles({
-  feed: {
+  root: {
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    backgroundColor: 'var(--bg-1)',
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    maxHeight: '260px',
+    minHeight: '320px',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--border-hairline)',
+  },
+  title: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: 'var(--text-1)',
+    margin: 0,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  meta: {
+    fontSize: '11px',
+    color: 'var(--text-3)',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  feed: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
     overflowY: 'auto',
+    maxHeight: '560px',
   },
   row: {
     display: 'grid',
-    gridTemplateColumns: '64px 1fr',
+    gridTemplateColumns: '72px 1fr',
     columnGap: '12px',
-    padding: '8px 16px',
+    padding: '10px 18px',
     fontSize: '13px',
     lineHeight: 1.5,
+    borderBottom: '1px solid var(--border-hairline)',
+  },
+  rowLast: {
+    borderBottom: 'none',
   },
   ts: {
-    fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+    fontFamily: 'var(--font-mono)',
     fontSize: '11px',
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-3)',
     fontVariantNumeric: 'tabular-nums',
     paddingTop: '2px',
   },
   text: {
-    color: tokens.colorNeutralForeground1,
+    color: 'var(--text-1)',
     margin: 0,
   },
   empty: {
-    padding: '24px 16px',
-    textAlign: 'center',
-    color: tokens.colorNeutralForeground3,
-    fontSize: '12px',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 24px',
+    color: 'var(--text-3)',
+    fontSize: '13px',
+    gap: '6px',
+  },
+  emptyMark: {
+    fontSize: '20px',
+    fontFamily: 'var(--font-mono)',
+    color: 'var(--text-4)',
+    letterSpacing: '0.1em',
   },
 });
 
@@ -59,32 +108,48 @@ export function LiveTranscript({ meetingId, organizerId }: Props) {
     refetchInterval: 3000,
   });
 
+  const feedRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
+  }, [data?.utterance_count]);
+
   return (
-    <Section
-      title="ライブ転写"
-      trailing={
-        <Caption1 style={{ color: tokens.colorNeutralForeground3 }}>
-          {data?.bot_active ? `${data.utterance_count}` : 'idle'}
-        </Caption1>
-      }
-      bare
-    >
-      <div className={styles.feed}>
-        {!data?.utterances?.length ? (
-          <p className={styles.empty}>
+    <section className={styles.root} aria-label="ライブ転写">
+      <div className={styles.header}>
+        <h2 className={styles.title}>
+          <StatusDot kind={data?.bot_active ? 'active' : 'neutral'} pulse={data?.bot_active} />
+          Live transcript
+        </h2>
+        <span className={styles.meta}>
+          {data?.bot_active ? `${data.utterance_count} utterances` : 'idle'}
+        </span>
+      </div>
+
+      {!data?.utterances?.length ? (
+        <div className={styles.empty}>
+          <span className={styles.emptyMark}>~</span>
+          <span>
+            {data?.bot_active ? 'listening…' : 'no audio yet'}
+          </span>
+          <span style={{ color: 'var(--text-4)', fontSize: 11 }}>
             {data?.bot_active
-              ? 'Bot は会議にいますが、まだ発言を拾っていません。'
-              : 'Bot を Teams 会議に派遣すると、発言がここに表示されます。'}
-          </p>
-        ) : (
-          data.utterances.map((u) => (
-            <div key={u.id} className={styles.row}>
+              ? 'Bot は会議にいます。発言を待機中。'
+              : 'Bot を派遣すると発言がここに流れます。'}
+          </span>
+        </div>
+      ) : (
+        <div className={styles.feed} ref={feedRef}>
+          {data.utterances.map((u, i) => (
+            <div
+              key={u.id}
+              className={`${styles.row}${i === data.utterances.length - 1 ? ` ${styles.rowLast}` : ''}`}
+            >
               <span className={styles.ts}>{fmtTime(u.started_at)}</span>
               <p className={styles.text}>{u.text}</p>
             </div>
-          ))
-        )}
-      </div>
-    </Section>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

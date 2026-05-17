@@ -4,8 +4,6 @@ import {
   AccordionItem,
   AccordionPanel,
   Body1,
-  Caption1,
-  Spinner,
   Title2,
   makeStyles,
   tokens,
@@ -23,24 +21,26 @@ import { OnboardingSteps } from '@/components/OnboardingSteps';
 import { Sidebar } from '@/components/Sidebar';
 import { TeamsBotInvite } from '@/components/TeamsBotInvite';
 import { UtteranceConsole } from '@/components/UtteranceConsole';
+import { Kpi, KpiRow } from '@/components/primitives/Kpi';
+import { Skeleton } from '@/components/primitives/Skeleton';
 import { api } from '@/lib/api';
 import { useIdentity } from '@/lib/store';
 
 const useStyles = makeStyles({
-  root: {
+  page: {
     display: 'grid',
     gridTemplateColumns: '1fr 320px',
-    minHeight: '100vh',
-    '@media (max-width: 900px)': {
+    minHeight: 'calc(100vh - 52px)',
+    '@media (max-width: 1100px)': {
       gridTemplateColumns: '1fr',
     },
   },
   main: {
-    padding: '24px 32px 48px',
-    overflowY: 'auto',
+    padding: '24px 28px 48px',
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
+    minWidth: 0,
   },
   header: {
     display: 'flex',
@@ -48,42 +48,97 @@ const useStyles = makeStyles({
     gap: '6px',
   },
   eyebrow: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: '11px',
-    letterSpacing: '0.08em',
+    color: 'var(--accent)',
+    fontSize: '10px',
+    letterSpacing: '0.16em',
     textTransform: 'uppercase',
+    fontFamily: 'var(--font-mono)',
+    fontWeight: 700,
   },
   titleRow: {
     display: 'flex',
-    alignItems: 'baseline',
-    gap: '12px',
+    alignItems: 'flex-end',
+    gap: '16px',
+    justifyContent: 'space-between',
     flexWrap: 'wrap',
   },
   title: {
     margin: 0,
     fontSize: '24px',
     fontWeight: 600,
-    letterSpacing: '-0.01em',
+    letterSpacing: '-0.015em',
+    lineHeight: 1.2,
+    color: 'var(--text-1)',
+    maxWidth: '760px',
   },
   meta: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: '12px',
+    color: 'var(--text-3)',
+    fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    display: 'flex',
+    gap: '12px',
+    alignItems: 'center',
   },
-  feedRow: {
+  metaInline: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+  },
+  metaSep: {
+    color: 'var(--text-4)',
+  },
+  feedGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr',
-    gap: '16px',
+    gridTemplateColumns: '1.4fr 1fr',
+    gap: '14px',
+    '@media (max-width: 1280px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
   tools: {
     marginTop: '8px',
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-1)',
   },
   loading: {
-    minHeight: '100vh',
+    padding: '24px 28px',
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: 'column',
+    gap: '14px',
+  },
+  loadingKpi: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: '12px',
+  },
+  loadingFeed: {
+    display: 'grid',
+    gridTemplateColumns: '1.4fr 1fr',
+    gap: '14px',
   },
 });
+
+function fmtUsd(value: number): string {
+  if (value < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
+function fmtTokens(value: number): string {
+  if (value >= 10_000) return `${(value / 1000).toFixed(1)}k`;
+  return value.toLocaleString();
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  idle: 'STAND BY',
+  connecting: 'JOINING',
+  in_call: 'LISTENING',
+  disconnected: 'LEFT',
+  failed: 'FAILED',
+};
 
 export function MeetingRoom() {
   const styles = useStyles();
@@ -110,7 +165,17 @@ export function MeetingRoom() {
   if (isLoading || !meeting) {
     return (
       <div className={styles.loading}>
-        <Spinner size="large" label="司令室を準備中..." />
+        <Skeleton height={56} />
+        <Skeleton height={88} />
+        <div className={styles.loadingKpi}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} height={80} />
+          ))}
+        </div>
+        <div className={styles.loadingFeed}>
+          <Skeleton height={320} />
+          <Skeleton height={320} />
+        </div>
       </div>
     );
   }
@@ -119,30 +184,68 @@ export function MeetingRoom() {
   const liveUtteranceCount = transcript?.utterance_count ?? 0;
   const needsDispatch = !botActive;
   const showOnboarding = needsDispatch && !meeting.teams_meeting_url;
+  const decidedCount = meeting.topics.filter((t) => t.state === 'decided').length;
 
   return (
-    <div className={styles.root}>
+    <div className={styles.page}>
       <div className={styles.main}>
         <header className={styles.header}>
-          <span className={styles.eyebrow}>Mission Control</span>
-          <Title2 as="h1" className={styles.title}>
-            {meeting.goal || '派遣セッション (ゴール未設定)'}
-          </Title2>
+          <span className={styles.eyebrow}>MISSION CONTROL · session</span>
           <div className={styles.titleRow}>
-            <Caption1 className={styles.meta}>
-              {meeting.mode} · {meeting.total_minutes} min · {meeting.state}
-            </Caption1>
-            <GoalEditor meeting={meeting} organizerId={organizerId} />
+            <Title2 as="h1" className={styles.title}>
+              {meeting.goal || (
+                <span style={{ color: 'var(--text-3)' }}>派遣セッション (ゴール未設定)</span>
+              )}
+            </Title2>
+            <div className={styles.meta}>
+              <span className={styles.metaInline}>{meeting.mode}</span>
+              <span className={styles.metaSep}>·</span>
+              <span className={styles.metaInline}>{meeting.total_minutes} min</span>
+              <span className={styles.metaSep}>·</span>
+              <span className={styles.metaInline}>{meeting.state.replace('_', ' ')}</span>
+              <GoalEditor meeting={meeting} organizerId={organizerId} />
+            </div>
           </div>
         </header>
 
         <BotStatusStrip meeting={meeting} liveUtteranceCount={liveUtteranceCount} />
 
-        {showOnboarding && <OnboardingSteps />}
+        <KpiRow>
+          <Kpi
+            label="Bot status"
+            value={STATUS_LABEL[meeting.bot_status] ?? meeting.bot_status}
+            hint={meeting.teams_meeting_url ? 'Teams URL wired' : 'awaiting URL'}
+          />
+          <Kpi
+            label="Utterances"
+            value={<span className="num-mono">{liveUtteranceCount}</span>}
+            hint={meeting.bot_status === 'in_call' ? 'live · STT' : 'idle'}
+          />
+          <Kpi
+            label="Interventions"
+            value={<span className="num-mono">{meeting.delivered_interventions.length}</span>}
+            hint="L1 / L2 / L3 累計"
+          />
+          <Kpi
+            label="Decisions"
+            value={
+              <span className="num-mono">
+                {decidedCount}/{meeting.topics.length}
+              </span>
+            }
+            hint={meeting.topics.length === 0 ? 'no topics' : 'decided / total'}
+          />
+          <Kpi
+            label="LLM cost"
+            value={<span className="num-mono">{fmtUsd(meeting.usage.total_cost_usd)}</span>}
+            hint={`${fmtTokens(meeting.usage.total_tokens)} tok · ${meeting.usage.call_count} calls`}
+          />
+        </KpiRow>
 
+        {showOnboarding && <OnboardingSteps />}
         {needsDispatch && <TeamsBotInvite meeting={meeting} organizerId={organizerId} />}
 
-        <div className={styles.feedRow}>
+        <div className={styles.feedGrid}>
           <InterventionFeed meeting={meeting} />
           <LiveTranscript meetingId={meeting.id} organizerId={organizerId} />
         </div>
@@ -150,15 +253,13 @@ export function MeetingRoom() {
         <div className={styles.tools}>
           <Accordion collapsible multiple>
             <AccordionItem value="cost">
-              <AccordionHeader>LLM コスト</AccordionHeader>
+              <AccordionHeader>LLM コスト詳細</AccordionHeader>
               <AccordionPanel>
                 <CostCard usage={meeting.usage} />
               </AccordionPanel>
             </AccordionItem>
             <AccordionItem value="docs">
-              <AccordionHeader>
-                参考文書 ({meeting.document_ids.length})
-              </AccordionHeader>
+              <AccordionHeader>参考文書 ({meeting.document_ids.length})</AccordionHeader>
               <AccordionPanel>
                 <DocumentUpload
                   meetingId={meeting.id}
@@ -170,9 +271,7 @@ export function MeetingRoom() {
             <AccordionItem value="dev-stt">
               <AccordionHeader>Browser STT (dev fallback)</AccordionHeader>
               <AccordionPanel>
-                <Body1
-                  style={{ color: tokens.colorNeutralForeground3, marginBottom: 8 }}
-                >
+                <Body1 style={{ color: tokens.colorNeutralForeground3, marginBottom: 8 }}>
                   Teams Bot を使わず手動で発言を入れる時のみ。
                 </Body1>
                 <UtteranceConsole

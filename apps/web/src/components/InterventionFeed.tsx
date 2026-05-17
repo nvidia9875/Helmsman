@@ -1,22 +1,51 @@
-import { Caption1, makeStyles, tokens } from '@fluentui/react-components';
+import { makeStyles } from '@fluentui/react-components';
 
 import { LevelBar } from '@/components/primitives/LevelBar';
-import { Section } from '@/components/primitives/Section';
 import type { InterventionDelivery, Meeting } from '@/lib/api';
 
 const useStyles = makeStyles({
-  feed: {
+  root: {
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    backgroundColor: 'var(--bg-1)',
+    overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    maxHeight: '520px',
+    minHeight: '320px',
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--border-hairline)',
+  },
+  title: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: 'var(--text-1)',
+    margin: 0,
+  },
+  count: {
+    fontSize: '11px',
+    color: 'var(--text-3)',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+  },
+  feed: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
     overflowY: 'auto',
+    maxHeight: '560px',
   },
   item: {
     display: 'grid',
     gridTemplateColumns: 'auto 1fr',
     columnGap: '12px',
-    padding: '14px 16px',
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--border-hairline)',
   },
   itemLast: {
     borderBottom: 'none',
@@ -24,7 +53,7 @@ const useStyles = makeStyles({
   body: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '6px',
     minWidth: 0,
   },
   topRow: {
@@ -34,36 +63,57 @@ const useStyles = makeStyles({
     justifyContent: 'space-between',
   },
   agent: {
-    fontSize: '12px',
-    color: tokens.colorNeutralForeground2,
+    fontSize: '11px',
+    color: 'var(--text-2)',
     fontWeight: 500,
-    letterSpacing: '0.02em',
+    letterSpacing: '0.04em',
+    fontFamily: 'var(--font-mono)',
+    textTransform: 'uppercase',
+  },
+  level: {
+    fontSize: '10px',
+    color: 'var(--accent)',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    fontFamily: 'var(--font-mono)',
   },
   timestamp: {
-    fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+    fontFamily: 'var(--font-mono)',
     fontSize: '11px',
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-3)',
     fontVariantNumeric: 'tabular-nums',
   },
   content: {
     fontSize: '14px',
-    color: tokens.colorNeutralForeground1,
-    lineHeight: 1.5,
+    color: 'var(--text-1)',
+    lineHeight: 1.55,
     margin: 0,
   },
   evidence: {
     fontSize: '12px',
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-3)',
     fontStyle: 'italic',
-    paddingLeft: '10px',
-    borderLeft: `2px solid ${tokens.colorNeutralStroke2}`,
+    paddingLeft: '12px',
+    borderLeft: '2px solid var(--border-hairline)',
     marginTop: '6px',
+    lineHeight: 1.5,
   },
   empty: {
-    padding: '32px 16px',
-    textAlign: 'center',
-    color: tokens.colorNeutralForeground3,
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 24px',
+    color: 'var(--text-3)',
     fontSize: '13px',
+    gap: '6px',
+  },
+  emptyMark: {
+    fontSize: '24px',
+    fontFamily: 'var(--font-mono)',
+    color: 'var(--text-4)',
+    letterSpacing: '0.1em',
   },
 });
 
@@ -80,31 +130,34 @@ export function InterventionFeed({ meeting }: { meeting: Meeting }) {
   const items: InterventionDelivery[] = [...meeting.delivered_interventions].reverse();
 
   return (
-    <Section
-      title="介入フィード"
-      trailing={
-        <Caption1 style={{ color: tokens.colorNeutralForeground3 }}>
-          {items.length === 0 ? '0' : `${items.length} 件`}
-        </Caption1>
-      }
-      bare
-    >
-      <div className={styles.feed}>
-        {items.length === 0 ? (
-          <p className={styles.empty}>
-            まだ介入はありません。会議が進むと AI 提案がここに流れます。
-          </p>
-        ) : (
-          items.map((d, i) => (
-            <div
+    <section className={styles.root} aria-label="介入フィード">
+      <div className={styles.header}>
+        <h2 className={styles.title}>Intervention feed</h2>
+        <span className={styles.count}>
+          {items.length === 0 ? '— empty —' : `${items.length} delivered`}
+        </span>
+      </div>
+
+      {items.length === 0 ? (
+        <div className={styles.empty}>
+          <span className={styles.emptyMark}>· · ·</span>
+          <span>arbiter standing by</span>
+          <span style={{ color: 'var(--text-4)', fontSize: 11 }}>
+            会議が進むと AI 提案がここに流れます
+          </span>
+        </div>
+      ) : (
+        <div className={styles.feed}>
+          {items.map((d, i) => (
+            <article
               key={d.id}
-              className={`${styles.item}${i === items.length - 1 ? ` ${styles.itemLast}` : ''}`}
+              className={`${styles.item}${i === items.length - 1 ? ` ${styles.itemLast}` : ''} fade-rise`}
             >
               <LevelBar level={d.level} />
               <div className={styles.body}>
                 <div className={styles.topRow}>
                   <span className={styles.agent}>
-                    {d.agent} · {d.level}
+                    {d.agent} <span className={styles.level}>· {d.level}</span>
                   </span>
                   <span className={styles.timestamp}>{fmtTime(d.delivered_at)}</span>
                 </div>
@@ -113,10 +166,10 @@ export function InterventionFeed({ meeting }: { meeting: Meeting }) {
                   <p className={styles.evidence}>「{d.evidence_quote}」</p>
                 )}
               </div>
-            </div>
-          ))
-        )}
-      </div>
-    </Section>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
