@@ -54,6 +54,16 @@ class Meeting(BaseModel):
     last_intervention_at: datetime | None = None
     recent_utterance_density: float = 0.0  # 0-1, Arbiter が参照
 
+    # ----- 会議継続性 (シリーズ / 引き継ぎ) -----
+    parent_meeting_id: str | None = None  # 直前の会議 ID
+    series_id: str | None = None          # 同シリーズ会議 (定例) を束ねる ID
+    series_index: int | None = None       # シリーズ内何回目か (1-origin)
+    inherited_topic_ids: list[str] = Field(default_factory=list)  # 引き継いだ論点 ID
+
+    # ----- 文書グラウンディング -----
+    document_ids: list[str] = Field(default_factory=list)  # 紐付く文書 ID
+    document_index_name: str | None = None  # Azure AI Search / Cosmos Vector のインデックス名
+
     @property
     def time_remaining_pct(self) -> float:
         """残時間割合 (0.0-1.0)。"""

@@ -17,7 +17,7 @@ class Participant(BaseModel):
     voiceprint_profile_id: str | None = None  # Speaker Recognition 連携
     is_chair: bool = False
     is_senior: bool = False  # Authority gradient 用 (上司発言中は介入弱める)
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # Live stats
     total_speak_seconds: float = 0.0

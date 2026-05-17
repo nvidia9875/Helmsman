@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     azure_subscription_id: str | None = None
     container_app_fqdn: str | None = None
 
+    # ----- API auth (dev: shared secret. prod: Entra ID 推奨) -----
+    helmsman_api_key: str | None = None
+    helmsman_require_auth: bool = False
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

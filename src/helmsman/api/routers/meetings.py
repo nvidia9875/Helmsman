@@ -22,7 +22,13 @@ from helmsman.models.participant import Participant
 from helmsman.models.utterance import Utterance
 from helmsman.repositories.meetings import MeetingRepository
 
-router = APIRouter(prefix="/meetings", tags=["meetings"])
+from helmsman.api.security import require_api_key
+
+router = APIRouter(
+    prefix="/meetings",
+    tags=["meetings"],
+    dependencies=[Depends(require_api_key)],
+)
 
 
 # ---------- request / response schemas ----------
@@ -122,25 +128,32 @@ async def tick(
     quiet = QuietActivator()
     dissent = DissentSurface()
 
-    # 高頻度 agent は並列
-    coverage_task = coverage.run(req.recent_utterances, meeting.topics)
-    steering_task = steering.run(meeting, req.recent_utterances, meeting.topics)
-    decision_task = decision_capture.run(meeting, req.recent_utterances, meeting.topics)
-    quiet_task = quiet.run(meeting, req.participants, meeting.topics)
-    dissent_task = dissent.run(meeting, req.recent_utterances)
-
-    updated_topics, steering_cand, decision_result, quiet_cand, dissent_cand = (
-        await asyncio.gather(
-            coverage_task,
-            steering_task,
-            decision_task,
-            quiet_task,
-            dissent_task,
-        )
+    # 全 agent を並列実行。1 つが失敗しても他は続行 (return_exceptions=True)。
+    results = await asyncio.gather(
+        coverage.run(req.recent_utterances, meeting.topics),
+        steering.run(meeting, req.recent_utterances, meeting.topics),
+        decision_capture.run(meeting, req.recent_utterances, meeting.topics),
+        quiet.run(meeting, req.participants, meeting.topics),
+        dissent.run(meeting, req.recent_utterances),
+        return_exceptions=True,
     )
 
+    def _ok(r: Any) -> Any:
+        """例外なら None / 構造化ログを出す。"""
+        if isinstance(r, Exception):
+            from helmsman.core.logging import logger
+            logger.warning("tick.agent_failed", error=str(r), error_type=type(r).__name__)
+            return None
+        return r
+
+    updated_topics = _ok(results[0]) or meeting.topics
+    steering_cand = _ok(results[1])
+    decision_result = _ok(results[2]) or (None, None)
+    quiet_cand = _ok(results[3])
+    dissent_cand = _ok(results[4])
+
     meeting.topics = updated_topics
-    decision_topic, decision_cand = decision_result
+    _decision_topic, decision_cand = decision_result
 
     # 候補集約
     candidates: list[InterventionCandidate] = []

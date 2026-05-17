@@ -4,10 +4,20 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from openai import APIConnectionError, APITimeoutError, RateLimitError
 from openai.types.chat import ChatCompletionMessageParam
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from helmsman.core.llm_client import ModelTier, get_client, get_deployment
 from helmsman.core.logging import logger
+
+# LLM の再試行ポリシー (transient 失敗のみ)
+_RETRYABLE = (RateLimitError, APITimeoutError, APIConnectionError)
 
 
 class LLMAgent:
@@ -30,6 +40,12 @@ class LLMAgent:
         self.deployment = get_deployment(self.TIER)
         self.log = logger.bind(agent=self.AGENT_NAME, deployment=self.deployment)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=8),
+        retry=retry_if_exception_type(_RETRYABLE),
+        reraise=True,
+    )
     async def _chat(
         self,
         user_text: str,
@@ -38,7 +54,10 @@ class LLMAgent:
         max_completion_tokens: int = 800,
         temperature: float = 1.0,
     ) -> str:
-        """Call the chat completion endpoint and return the assistant content."""
+        """Call the chat completion endpoint and return the assistant content.
+
+        Transient な失敗 (429/Timeout/Connection) は exponential backoff で 3 回まで再試行。
+        """
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": self.SYSTEM_PROMPT},
             {"role": "user", "content": user_text},

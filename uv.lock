@@ -842,6 +842,8 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pytest-httpx" },
+    { name = "respx" },
     { name = "ruff" },
 ]
 
@@ -866,7 +868,9 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
+    { name = "pytest-httpx", marker = "extra == 'dev'", specifier = ">=0.30.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
+    { name = "respx", marker = "extra == 'dev'", specifier = ">=0.21.1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7.0" },
     { name = "semantic-kernel", specifier = ">=1.42.0" },
     { name = "structlog", specifier = ">=25.5.0" },
@@ -2249,6 +2253,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-httpx"
+version = "0.36.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/42/f53c58570e80d503ade9dd42ce57f2915d14bcbe25f6308138143950d1d6/pytest_httpx-0.36.2.tar.gz", hash = "sha256:05a56527484f7f4e8c856419ea379b8dc359c36801c4992fdb330f294c690356", size = 57683, upload-time = "2026-04-09T13:57:19.837Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1e/55/1fa65f8e4fceb19dd6daa867c162ad845d547f6058cd92b4b02384a44777/pytest_httpx-0.36.2-py3-none-any.whl", hash = "sha256:d42ebd5679442dc7bfb0c48e0767b6562e9bc4534d805127b0084171886a5e22", size = 20315, upload-time = "2026-04-09T13:57:18.587Z" },
+]
+
+[[package]]
 name = "python-dotenv"
 version = "1.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2341,6 +2358,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/42/f2/05f29bc3913aea15eb670be136045bf5c5bbf4b99ecb839da9b422bb2c85/requests-oauthlib-2.0.0.tar.gz", hash = "sha256:b3dffaebd884d8cd778494369603a9e7b58d29111bf6b41bdc2dcd87203af4e9", size = 55650, upload-time = "2024-03-22T20:32:29.939Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/5d/63d4ae3b9daea098d5d6f5da83984853c1bbacd5dc826764b249fe119d24/requests_oauthlib-2.0.0-py2.py3-none-any.whl", hash = "sha256:7dd8a5c40426b779b0868c404bdef9768deccf22749cde15852df527e6269b36", size = 24179, upload-time = "2024-03-22T20:32:28.055Z" },
+]
+
+[[package]]
+name = "respx"
+version = "0.23.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/98/4e55c9c486404ec12373708d015ebce157966965a5ebe7f28ff2c784d41b/respx-0.23.1.tar.gz", hash = "sha256:242dcc6ce6b5b9bf621f5870c82a63997e8e82bc7c947f9ffe272b8f3dd5a780", size = 29243, upload-time = "2026-04-08T14:37:16.008Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1d/4a/221da6ca167db45693d8d26c7dc79ccfc978a440251bf6721c9aaf251ac0/respx-0.23.1-py2.py3-none-any.whl", hash = "sha256:b18004b029935384bccfa6d7d9d74b4ec9af73a081cc28600fffc0447f4b8c1a", size = 25557, upload-time = "2026-04-08T14:37:14.613Z" },
 ]
 
 [[package]]

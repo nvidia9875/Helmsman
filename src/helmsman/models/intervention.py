@@ -31,7 +31,7 @@ class InterventionCandidate(BaseModel):
     reason: str
     evidence_quote: str | None = None
     confidence: float = Field(ge=0.0, le=1.0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     allowed_modes: list[str] = Field(default_factory=list)  # 空ならすべてのモードで許可
 
 
@@ -47,4 +47,4 @@ class InterventionDelivery(BaseModel):
     evidence_quote: str | None = None
     level: InterventionLevel
     audience: list[str]  # ["chair"] / ["all"] / ["room_speaker", "remote_audio_inject"]
-    delivered_at: datetime = Field(default_factory=datetime.utcnow)
+    delivered_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

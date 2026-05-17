@@ -14,6 +14,6 @@ class Voiceprint(BaseModel):
     entra_id: str | None = None  # Entra ID 連携時のみ
     display_name: str
     speech_profile_id: str  # Azure AI Speech が発行する識別子
-    enrolled_at: datetime = Field(default_factory=datetime.utcnow)
+    enrolled_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     last_used_at: datetime | None = None
     is_active: bool = True
