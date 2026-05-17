@@ -6,7 +6,6 @@ import {
 } from '@fluentui/react-components';
 import {
   ArrowExit24Regular,
-  Book24Regular,
   Home24Regular,
   Rocket24Regular,
   Search24Regular,
@@ -251,12 +250,6 @@ const NAV_PRIMARY: NavEntry[] = [
 ];
 
 const NAV_FOOTER: NavEntry[] = [
-  {
-    to: 'https://github.com/nvidia9875/Helmsman',
-    label: 'Docs',
-    icon: <Book24Regular />,
-    external: true,
-  },
   {
     to: 'https://learn.microsoft.com/azure/communication-services/',
     label: 'Settings',
