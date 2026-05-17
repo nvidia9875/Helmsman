@@ -1,10 +1,11 @@
 import { Body1, Button, Spinner, Title2, makeStyles, tokens } from '@fluentui/react-components';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
 import { useMemo, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { Sidebar } from '@/components/Sidebar';
+import { UtteranceConsole } from '@/components/UtteranceConsole';
 import { api } from '@/lib/api';
 import { useIdentity } from '@/lib/store';
 
@@ -48,6 +49,7 @@ export function MeetingRoom() {
   const { meetingId } = useParams<{ meetingId: string }>();
   const [searchParams] = useSearchParams();
   const { userId } = useIdentity();
+  const queryClient = useQueryClient();
   const organizerId = searchParams.get('organizer_id') ?? userId;
   const [copyState, setCopyState] = useState<'idle' | 'copied'>('idle');
 
@@ -55,7 +57,7 @@ export function MeetingRoom() {
     queryKey: ['meeting', meetingId, organizerId],
     queryFn: () => api.getMeeting(meetingId!, organizerId),
     enabled: !!meetingId,
-    refetchInterval: 5000,
+    refetchInterval: 8000,
   });
 
   const joinUrl = useMemo(() => {
@@ -103,6 +105,14 @@ export function MeetingRoom() {
             </Button>
           </div>
         </div>
+
+        <UtteranceConsole
+          meeting={meeting}
+          organizerId={organizerId}
+          onTickComplete={() =>
+            queryClient.invalidateQueries({ queryKey: ['meeting', meetingId, organizerId] })
+          }
+        />
       </div>
 
       <Sidebar meeting={meeting} />

@@ -41,23 +41,23 @@ resource database 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2024-11-15
   }
 }
 
-// containers
+// containers (partition key パスは Python snake_case フィールドに合わせる)
 var containers = [
   {
     name: 'meetings'
-    partitionKey: '/organizerId'
+    partitionKey: '/organizer_id'
   }
   {
     name: 'participants'
-    partitionKey: '/meetingId'
+    partitionKey: '/meeting_id'
   }
   {
     name: 'voiceprints'
-    partitionKey: '/entraId'
+    partitionKey: '/id'
   }
   {
     name: 'interventions'
-    partitionKey: '/meetingId'
+    partitionKey: '/meeting_id'
   }
 ]
 
