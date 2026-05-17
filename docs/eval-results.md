@@ -1,3 +1,13 @@
+> **2026-05-17 後付け注記**: 下記 v3 cheap 結果は Arbiter rate_limit のバグの
+> 影響を受けていた。Arbiter は `datetime.now(UTC) - last_intervention_at` で
+> 経過時間を計算するが、eval (特に transcript replay) は wall_time を 70 秒に
+> 圧縮するため、最初の delivery 後 ~60 秒間ほぼ全ての候補が rate_limit で
+> 弾かれていた。**mini の品質劣化ではなく時間圧縮の人為要因**。
+>
+> 修正 (`commit TBD`): Arbiter.decide() に `now` パラメータを追加し、eval は
+> audio-time の現在時刻を渡すように変更。**cheap モードの再評価が必要**。
+> 現状の「gpt-5.4 keep 推奨」結論は再検証待ち。
+
 # Helmsman Offline Evaluation Results
 
 > 公開済 25 分の日本語ビジネス会議音声 (YouTube マーケティング戦略会議) を

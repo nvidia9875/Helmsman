@@ -93,6 +93,25 @@ def test_high_priority_has_shorter_rate_limit(arbiter, meeting):
     assert d is not None
 
 
+def test_now_override_uses_injected_clock_for_rate_limit(arbiter, meeting):
+    """`now` 引数で rate_limit の比較時刻を上書きできる (eval で audio_time を使うため)。
+
+    wall-clock 上は 1 秒しか経っていなくても、audio-time 上で 70 秒経った
+    扱いにすれば、rate_limit (60s) を超えるので通る。
+    """
+    wall_now = datetime.now(UTC)
+    meeting.last_intervention_at = wall_now - timedelta(seconds=1)  # wall: 1 秒前
+    audio_now = wall_now + timedelta(seconds=69)  # audio: +70 秒先
+
+    c = _candidate("QuietActivator")  # priority 50, rate_limit 60s
+    # wall now では rate_limit に弾かれる (1s < 60s)
+    assert arbiter.decide([c], meeting, None, None) is None
+    # audio_now を渡せば通る (70s > 60s)
+    d = arbiter.decide([c], meeting, None, None, now=audio_now)
+    assert d is not None
+    assert d.agent == "QuietActivator"
+
+
 def test_density_aware_silence_blocks_low_priority(arbiter, meeting):
     """議論密度が高い時 (>0.8) は低優先度を抑制する。"""
     meeting.recent_utterance_density = 0.9

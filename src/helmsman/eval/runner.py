@@ -10,7 +10,7 @@ import asyncio
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from helmsman.agents import (
@@ -84,8 +84,14 @@ async def _run_one_tick(
     recent: list[Utterance],
     participants: list[Participant],
     doc_excerpts: str | None,
+    audio_now: datetime,
 ) -> tuple[list[InterventionCandidate], InterventionDelivery | None]:
-    """1 tick: 5 agents + TimeKeeper + Arbiter。meeting を in-place 更新。"""
+    """1 tick: 5 agents + TimeKeeper + Arbiter。meeting を in-place 更新。
+
+    audio_now: 音声時間軸上の現在時刻。Arbiter の rate_limit は last_intervention_at
+    との差分を見るが、eval では wall-time が圧縮されるので audio_now を渡して
+    本番相当の rate_limit 挙動を再現する。
+    """
     coverage = CoverageTracker()
     steering = SteeringAgent()
     decision_capture = DecisionCapture()
@@ -128,9 +134,9 @@ async def _run_one_tick(
 
     arbiter = InterventionArbiter()
     chair = participants[0] if participants else None
-    delivery = arbiter.decide(candidates, meeting, chair, chair)
+    delivery = arbiter.decide(candidates, meeting, chair, chair, now=audio_now)
     if delivery:
-        meeting.last_intervention_at = datetime.now(UTC)
+        meeting.last_intervention_at = audio_now
         meeting.delivered_interventions.append(delivery)
         meeting.delivered_interventions = meeting.delivered_interventions[-50:]
 
@@ -213,12 +219,17 @@ async def run_eval(
         chair.total_speak_seconds = sum(u.duration_sec for u in utterances)
         chair.utterance_count = len(utterances)
 
+        # 音声時間軸の「今」 — Arbiter の rate_limit が wall-time 圧縮で
+        # 誤動作しないように渡す
+        audio_now = run_started_at + timedelta(seconds=audio_offset_accum)
+
         tick_start = time.monotonic()
         candidates, delivery = await _run_one_tick(
             meeting,
             recent=recent,
             participants=participants,
             doc_excerpts=None,
+            audio_now=audio_now,
         )
         tick_latency = time.monotonic() - tick_start
         all_candidates.extend(candidates)

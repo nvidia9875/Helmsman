@@ -56,8 +56,13 @@ class InterventionArbiter:
         meeting: Meeting,
         chair: Participant | None,
         current_speaker: Participant | None,
+        now: datetime | None = None,
     ) -> InterventionDelivery | None:
-        """候補リストから 0 or 1 件の delivery を返す。"""
+        """候補リストから 0 or 1 件の delivery を返す。
+
+        `now` を指定すると rate_limit の比較基準時刻を上書きできる (eval で audio
+        time を使うため)。None なら datetime.now(UTC)。
+        """
         # 1) confidence フィルタ
         candidates = [c for c in candidates if c.confidence >= 0.7]
         if not candidates:
@@ -68,8 +73,9 @@ class InterventionArbiter:
             key=lambda c: self.PRIORITY.get(c.agent, 0), reverse=True
         )
 
+        ref_now = now or datetime.now(UTC)
         for c in candidates:
-            if not self._can_intervene(c, meeting, current_speaker):
+            if not self._can_intervene(c, meeting, current_speaker, ref_now):
                 self.log.debug("arbiter.skipped", agent=c.agent, reason="filter")
                 continue
             level = self._intervention_level(c, meeting)
@@ -98,6 +104,7 @@ class InterventionArbiter:
         c: InterventionCandidate,
         meeting: Meeting,
         current_speaker: Participant | None,
+        now: datetime,
     ) -> bool:
         priority = self.PRIORITY.get(c.agent, 0)
 
@@ -106,7 +113,7 @@ class InterventionArbiter:
             self.HIGH_PRIORITY_RATE_LIMIT if priority >= 80 else self.RATE_LIMIT_SEC
         )
         if meeting.last_intervention_at is not None:
-            elapsed = (datetime.now(UTC) - meeting.last_intervention_at).total_seconds()
+            elapsed = (now - meeting.last_intervention_at).total_seconds()
             if elapsed < rate_limit:
                 return False
 
