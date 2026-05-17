@@ -13,7 +13,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { BotMissionCard } from '@/components/BotMissionCard';
+import { BotStatusStrip } from '@/components/BotStatusStrip';
 import { CostCard } from '@/components/CostCard';
 import { DocumentUpload } from '@/components/DocumentUpload';
 import { GoalEditor } from '@/components/GoalEditor';
@@ -29,48 +29,53 @@ import { useIdentity } from '@/lib/store';
 const useStyles = makeStyles({
   root: {
     display: 'grid',
-    gridTemplateColumns: '1fr 360px',
+    gridTemplateColumns: '1fr 320px',
     minHeight: '100vh',
+    '@media (max-width: 900px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
   main: {
-    padding: '32px 36px 48px',
+    padding: '24px 32px 48px',
     overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: '16px',
   },
-  goalRow: {
+  header: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
+    gap: '6px',
+  },
+  eyebrow: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: '11px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  titleRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '12px',
+    flexWrap: 'wrap',
+  },
+  title: {
+    margin: 0,
+    fontSize: '24px',
+    fontWeight: 600,
+    letterSpacing: '-0.01em',
   },
   meta: {
     color: tokens.colorNeutralForeground3,
     fontSize: '12px',
-    letterSpacing: '0.02em',
   },
-  twoCol: {
+  feedRow: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: '1fr',
     gap: '16px',
-    '@media (max-width: 1100px)': {
-      gridTemplateColumns: '1fr',
-    },
   },
-  utilsRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '16px',
-    '@media (max-width: 1100px)': {
-      gridTemplateColumns: '1fr',
-    },
-  },
-  devFallback: {
+  tools: {
     marginTop: '8px',
-    border: `1px dashed ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusLarge,
-    padding: '4px 16px',
-    backgroundColor: tokens.colorNeutralBackground2,
   },
   loading: {
     minHeight: '100vh',
@@ -95,7 +100,6 @@ export function MeetingRoom() {
     refetchInterval: 4000,
   });
 
-  // 発言数だけ知りたい (ヒーローカード用) — bot 動作中のみ polling
   const { data: transcript } = useQuery({
     queryKey: ['transcript', meetingId, organizerId],
     queryFn: () => api.getBotTranscript(meetingId!, organizerId),
@@ -106,96 +110,70 @@ export function MeetingRoom() {
   if (isLoading || !meeting) {
     return (
       <div className={styles.loading}>
-        <Spinner size="large" label="🛰 司令室を準備中..." />
+        <Spinner size="large" label="司令室を準備中..." />
       </div>
     );
   }
 
   const botActive = meeting.bot_status === 'in_call' || meeting.bot_status === 'connecting';
   const liveUtteranceCount = transcript?.utterance_count ?? 0;
-
-  // 派遣完了済 or 派遣中 → 招待カード/オンボーディングは表示しない (司令室として使う)
-  // 派遣失敗 / 退出 / そもそも URL 未設定 → 派遣ができる UI を出す
   const needsDispatch = !botActive;
-  const hasUrlButNotDispatched =
-    !!meeting.teams_meeting_url && meeting.bot_status === 'idle';
+  const showOnboarding = needsDispatch && !meeting.teams_meeting_url;
 
   return (
     <div className={styles.root}>
       <div className={styles.main}>
-        <div className={styles.goalRow}>
-          <Caption1 className={styles.meta}>🛰 Mission Control</Caption1>
-          <Title2 style={{ margin: 0 }}>
+        <header className={styles.header}>
+          <span className={styles.eyebrow}>Mission Control</span>
+          <Title2 as="h1" className={styles.title}>
             {meeting.goal || '派遣セッション (ゴール未設定)'}
           </Title2>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className={styles.titleRow}>
             <Caption1 className={styles.meta}>
-              モード {meeting.mode} ・ 予定 {meeting.total_minutes} 分 ・ 状態 {meeting.state}
+              {meeting.mode} · {meeting.total_minutes} min · {meeting.state}
             </Caption1>
             <GoalEditor meeting={meeting} organizerId={organizerId} />
           </div>
-        </div>
+        </header>
 
-        <BotMissionCard meeting={meeting} liveUtteranceCount={liveUtteranceCount} />
+        <BotStatusStrip meeting={meeting} liveUtteranceCount={liveUtteranceCount} />
 
-        {/* オンボーディングは「URL も未設定 + bot も未派遣」の極初期だけ */}
-        {needsDispatch && !hasUrlButNotDispatched && !meeting.teams_meeting_url && (
-          <OnboardingSteps />
-        )}
+        {showOnboarding && <OnboardingSteps />}
 
-        {/* 派遣 UI は bot が active でない時だけ。退出後の再派遣もここから。 */}
         {needsDispatch && <TeamsBotInvite meeting={meeting} organizerId={organizerId} />}
 
-        <div className={styles.twoCol}>
+        <div className={styles.feedRow}>
           <InterventionFeed meeting={meeting} />
           <LiveTranscript meetingId={meeting.id} organizerId={organizerId} />
         </div>
 
-        {botActive ? (
-          // Bot 動作中は補助カードは折りたたみで邪魔しない
-          <div className={styles.devFallback}>
-            <Accordion collapsible>
-              <AccordionItem value="cost">
-                <AccordionHeader>💰 LLM コスト & 利用</AccordionHeader>
-                <AccordionPanel>
-                  <CostCard usage={meeting.usage} />
-                </AccordionPanel>
-              </AccordionItem>
-              <AccordionItem value="docs">
-                <AccordionHeader>
-                  📎 参考文書 ({meeting.document_ids.length})
-                </AccordionHeader>
-                <AccordionPanel>
-                  <DocumentUpload
-                    meetingId={meeting.id}
-                    organizerId={organizerId}
-                    uploadedBy={userId}
-                  />
-                </AccordionPanel>
-              </AccordionItem>
-            </Accordion>
-          </div>
-        ) : (
-          // 待機中はカードを展開して文書アップロード等を促す
-          <div className={styles.utilsRow}>
-            <CostCard usage={meeting.usage} />
-            <DocumentUpload
-              meetingId={meeting.id}
-              organizerId={organizerId}
-              uploadedBy={userId}
-            />
-          </div>
-        )}
-
-        <div className={styles.devFallback}>
-          <Accordion collapsible>
-            <AccordionItem value="dev-stt">
+        <div className={styles.tools}>
+          <Accordion collapsible multiple>
+            <AccordionItem value="cost">
+              <AccordionHeader>LLM コスト</AccordionHeader>
+              <AccordionPanel>
+                <CostCard usage={meeting.usage} />
+              </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem value="docs">
               <AccordionHeader>
-                🛠️ Browser STT — Bot を使わず手動で発言を入れる (デバッグ用)
+                参考文書 ({meeting.document_ids.length})
               </AccordionHeader>
               <AccordionPanel>
-                <Body1 style={{ color: tokens.colorNeutralForeground3, marginBottom: 8 }}>
-                  通常デモは Teams Bot を使ってください。
+                <DocumentUpload
+                  meetingId={meeting.id}
+                  organizerId={organizerId}
+                  uploadedBy={userId}
+                />
+              </AccordionPanel>
+            </AccordionItem>
+            <AccordionItem value="dev-stt">
+              <AccordionHeader>Browser STT (dev fallback)</AccordionHeader>
+              <AccordionPanel>
+                <Body1
+                  style={{ color: tokens.colorNeutralForeground3, marginBottom: 8 }}
+                >
+                  Teams Bot を使わず手動で発言を入れる時のみ。
                 </Body1>
                 <UtteranceConsole
                   meeting={meeting}
