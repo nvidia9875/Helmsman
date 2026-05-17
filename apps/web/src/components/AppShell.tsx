@@ -7,7 +7,7 @@ import {
   Settings24Regular,
 } from '@fluentui/react-icons';
 import type { ReactNode } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 const NAV_WIDTH = '64px';
 const TOPBAR_HEIGHT = '52px';
@@ -139,9 +139,20 @@ const useStyles = makeStyles({
     color: 'var(--text-1)',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
+    textDecoration: 'none',
+    transitionProperty: 'color',
+    transitionDuration: '120ms',
+    ':hover': { color: 'var(--accent)' },
   },
   crumbSep: {
     color: 'var(--text-4)',
+  },
+  crumbLink: {
+    color: 'var(--text-2)',
+    textDecoration: 'none',
+    transitionProperty: 'color',
+    transitionDuration: '120ms',
+    ':hover': { color: 'var(--accent)' },
   },
   crumbCurrent: {
     color: 'var(--text-1)',
@@ -232,20 +243,26 @@ const NAV_FOOTER: NavEntry[] = [
   },
 ];
 
-function deriveCrumbs(pathname: string): { label: string; current: boolean }[] {
+interface Crumb {
+  label: string;
+  to?: string;
+  current: boolean;
+}
+
+function deriveCrumbs(pathname: string): Crumb[] {
   if (pathname === '/') return [{ label: 'Overview', current: true }];
   if (pathname === '/new') return [{ label: 'Dispatch', current: true }];
   if (pathname === '/groups') return [{ label: 'Groups', current: true }];
   if (pathname.startsWith('/groups/')) {
     return [
-      { label: 'Groups', current: false },
+      { label: 'Groups', to: '/groups', current: false },
       { label: 'Detail', current: true },
     ];
   }
   if (pathname.startsWith('/m/')) {
     if (pathname.endsWith('/join')) return [{ label: 'Join meeting', current: true }];
     return [
-      { label: 'Sessions', current: false },
+      { label: 'Sessions', to: '/', current: false },
       { label: 'Mission Control', current: true },
     ];
   }
@@ -320,11 +337,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={styles.workspace}>
         <header className={styles.topbar}>
           <div className={styles.crumbs}>
-            <span className={styles.crumbBrand}>HELMSMAN</span>
+            <Link to="/" className={styles.crumbBrand} aria-label="Overview に戻る">
+              HELMSMAN
+            </Link>
             <span className={styles.crumbSep}>/</span>
             {crumbs.map((c, i) => (
               <span key={`${c.label}-${i}`} style={{ display: 'inline-flex', gap: '8px' }}>
-                <span className={c.current ? styles.crumbCurrent : undefined}>{c.label}</span>
+                {c.current ? (
+                  <span className={styles.crumbCurrent}>{c.label}</span>
+                ) : c.to ? (
+                  <Link to={c.to} className={styles.crumbLink}>
+                    {c.label}
+                  </Link>
+                ) : (
+                  <span>{c.label}</span>
+                )}
                 {i < crumbs.length - 1 && <span className={styles.crumbSep}>/</span>}
               </span>
             ))}
