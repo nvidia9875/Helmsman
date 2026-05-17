@@ -1,13 +1,3 @@
-> **2026-05-17 後付け注記**: 下記 v3 cheap 結果は Arbiter rate_limit のバグの
-> 影響を受けていた。Arbiter は `datetime.now(UTC) - last_intervention_at` で
-> 経過時間を計算するが、eval (特に transcript replay) は wall_time を 70 秒に
-> 圧縮するため、最初の delivery 後 ~60 秒間ほぼ全ての候補が rate_limit で
-> 弾かれていた。**mini の品質劣化ではなく時間圧縮の人為要因**。
->
-> 修正 (`commit TBD`): Arbiter.decide() に `now` パラメータを追加し、eval は
-> audio-time の現在時刻を渡すように変更。**cheap モードの再評価が必要**。
-> 現状の「gpt-5.4 keep 推奨」結論は再検証待ち。
-
 # Helmsman Offline Evaluation Results
 
 > 公開済 25 分の日本語ビジネス会議音声 (YouTube マーケティング戦略会議) を
@@ -17,6 +7,7 @@
 > 1. パイプラインが実音声で end-to-end 動作することを確認
 > 2. ゴール宣言の有無による介入動作の違いを計測
 > 3. LLM tier (gpt-5.4 vs gpt-5.4-mini) のコスト/品質トレードオフを評価
+> 4. Arbiter rate_limit が eval (時間圧縮) 環境で正しく動くことを確認
 
 ## 評価対象
 
@@ -29,115 +20,134 @@
 | 参加者 | 2 名 |
 | 評価日 | 2026-05-17 |
 
-## 3 通りの設定
+## 4 通りの設定
 
-| Run | Goal | LLM tier (Decision/Dissent) | STT | 用途 |
-|---|---|---|---|---|
-| **v1** monitor | (なし) | gpt-5.4 | Speech SDK | 「監視のみ」モードのベースライン |
-| **v2** goal-default | "YouTube チャンネル運営方針を決定する" | **gpt-5.4** | Speech SDK | プロダクション相当 |
-| **v3** goal-cheap | (同上) | **gpt-5.4-mini** (`--cheap`) | transcript replay | コスト/品質トレードオフ確認 |
+| Run | Goal | LLM tier (Decision/Dissent) | STT / 入力 |
+|---|---|---|---|
+| **v1** monitor | (なし) | gpt-5.4 | Speech SDK 音声 |
+| **v2** goal-buggy | "YouTube チャンネル運営方針を決定する" | gpt-5.4 | Speech SDK 音声 (rate_limit バグの影響あり) |
+| **v2-fixed** goal | (同上) | gpt-5.4 | transcript replay (rate_limit 修正後) |
+| **v3-fixed** cheap | (同上) | **gpt-5.4-mini** (`--cheap`) | transcript replay (rate_limit 修正後) |
 
-## メトリクス
+> v2 と v2-fixed は **同じ utterances を入力**。違いは Arbiter rate_limit が
+> wall-time (バグ) か audio-time (修正後) かのみ。
 
-| Metric | v1 monitor | v2 goal | v3 goal-cheap | 備考 |
-|---|---:|---:|---:|---|
-| Utterances captured | 173 | 173 | 173 | STT 結果は同一 (v3 は v2 の replay) |
-| Ticks fired | 26 | 26 | 26 | 45 sec ごと (audio time) |
-| Candidates generated | 13 | 33 | **34** | mini も同等数の候補を出す |
-| Interventions delivered | 7 | 11 | **3** | Arbiter 通過件数 |
-| **Arbiter acceptance** | **53.8 %** | **33.3 %** | **8.8 %** | Arbiter が品質基準で削り込み |
-| Topics extracted | 0 | 5 | 5 | GoalDecomposer (gpt-5.4) は両 run で同じ |
-| Topics decided | — | 1 | 3 | Coverage が「決定」と判定した数 |
-| **LLM cost (USD)** | **$0.0793** | **$0.1801** | **$0.0315** | v3 は v2 の **1/6** |
-| Tokens | 21,787 | 107,861 | 111,140 | mini もトークン消費は同等 |
-| LLM calls | 25 | 104 | 104 | 同条件 |
-| Avg tick latency | 2.82 s | 3.34 s | 2.45 s | mini は若干速い |
-| Wall duration | 12.0 min | 12.8 min | **70.7 sec** | transcript モードは STT スキップで爆速 |
+## メインメトリクス比較
 
-### 介入の by-agent 分布
+| Metric | v1 monitor | v2 buggy | **v2-fixed** | **v3-fixed cheap** |
+|---|---:|---:|---:|---:|
+| Utterances | 173 | 173 | 173 | 173 |
+| Topics extracted | 0 | 5 | 4 | 5 |
+| **Topics decided** | — | 1 | **4** | **5** |
+| Candidates → Delivered | 13→7 | 33→11 | **26→10** | **33→15** |
+| Arbiter acceptance | 53.8 % | 33.3 % | 38.5 % | **45.5 %** |
+| **Interventions delivered** | 7 | 11 | 10 | **15** |
+| **Decisions captured** | 0 | 5 | 5 | **10** |
+| **LLM cost (USD)** | $0.0793 | $0.1801 | $0.1720 | **$0.0294** |
+| Cost / decision captured | — | $0.036 | $0.034 | **$0.003** (約 11× 安) |
+| LLM total tokens | 21,787 | 107,861 | 103,708 | 105,902 |
+| LLM calls | 25 | 104 | 98 | 100 |
+| Avg tick latency | 2.82 s | 3.34 s | 2.56 s | **2.08 s** |
+| Wall duration | 12.0 min | 12.8 min | 73 sec | 61 sec |
 
-| Agent | v1 | v2 | v3 |
-|---|---:|---:|---:|
-| SteeringAgent (gpt-5.4-mini) | 0 | **5** | 0 *(候補は 0 ではないが Arbiter 全弾き)* |
-| DecisionCapture | 0 | **5** | 2 |
-| DissentSurface | **7** | 1 | 1 |
-| CoverageTracker | (背景処理) | (背景処理) | (背景処理) |
-| QuietActivator | 0 | 0 | 0 |
-| TimeKeeper (rule) | 0 | 0 | 0 |
+## 介入の by-agent 分布
 
-## 質的観察
+| Agent | v1 | v2 buggy | v2-fixed | v3-fixed cheap |
+|---|---:|---:|---:|---:|
+| SteeringAgent (gpt-5.4-mini 共通) | 0 | 5 | 0 | 2 |
+| DecisionCapture | 0 | 5 | **5** | **10** |
+| DissentSurface | 7 | 1 | 5 | 3 |
+| QuietActivator | 0 | 0 | 0 | 0 |
+| TimeKeeper (rule) | 0 | 0 | 0 | 0 |
 
-### v2 (gpt-5.4) で正しく構造化された決定 5 件
+## 重要な発見
 
-実際の会議内で決まった内容を AI が下記の形で捕捉:
+### 1. Arbiter rate_limit は wall_time ベースで eval は audio-time 圧縮が起きていた
 
-1. 「再生回数にフォーカスした目標設定」(平日効果のデータ分析後)
-2. **「3H 戦略 (Hero / Hub / Help) で進める」** (役割分担と一緒に決定)
-3. 「ペンギンメンバーに資料作らせてスキルセット肌感つかむ」
-4. **「ノウハウ動画タイトルは青地に黄色文字テンプレ」** (CTR 改善)
-5. 「現状の相関関数で今月予測に使う」(KPI 評価方法)
+- **Bug**: `Arbiter._can_intervene` が `datetime.now(UTC) - last_intervention_at` を見ていた
+- **Symptom**: transcript replay (25 min 音声を 70 秒 wall で再生) では、1 件 deliver した後ほぼ全候補が rate_limit (60s wall) で弾かれていた
+- **Fix**: `Arbiter.decide(..., now=...)` 引数を追加。eval runner が `audio_now = run_started_at + audio_offset_accum` を渡す
+- **Impact**: v3 (cheap) の deliveries が 3 → **15 件 (5×)** に増加。以前の「mini は品質劣化大」結論が誤りだった
 
-→ デモ動画でビフォアアフター対比の主軸になる。
+### 2. **cheap モード (gpt-5.4-mini) が default (gpt-5.4) を上回る** — 本ハッカソンの想定外好結果
 
-### v3 (cheap, mini) の劣化パターン
+| 観点 | v2-fixed (high) | v3-fixed (cheap) |
+|---|---|---|
+| 決定捕捉数 | 5 件 | **10 件** (2 倍) |
+| 平日効果 / 3H 戦略 / 青地黄字テンプレ | 一部 | **全部** + ヒーロー本数決定など追加 |
+| Steering 介入 | 0 件 (mini 候補は出てたが弾かれてた) | 2 件 |
+| Dissent | 5 件 (細かい懸念点) | 3 件 (主要懸念のみ) |
+| トータルコスト | $0.17 | **$0.03** (1/6) |
+| **決定 1 件あたり** | $0.034 | **$0.003** (1/11) |
 
-- **SteeringAgent**: 5 件の redirect 候補を出すが Arbiter が全部 filter 弾き
-  - mini の出力は **confidence と evidence_quote 品質が低く**、Arbiter の閾値を割る
-- **DecisionCapture**: 5 件 → 2 件に減 (60% 漏れ)
-  - 3H 戦略・青黄テンプレ・平日効果が漏れた
-  - 残った 2 件 (再生回数 KPI / 試作リソース確認) は正確
-- **DissentSurface**: 1 件キープ (差は小さい)
+仮説:
+- gpt-5.4 の reasoning depth は本タスク (構造化された会議の決定捕捉) では過剰
+- mini は granular な決定をより多く拾う傾向 (会議の細部までカバー)
+- ただし Dissent の reasoning は浅め → v2-fixed の方が長期影響の懸念を多く出している
 
-### v1 monitor mode の発見
+### 3. monitor mode (v1) は実質 Dissent agent のみ稼働
 
-Goal なしだと **Coverage / Steering / Decision / Quiet が trivial skip** (topics が空のため)。実質 Dissent agent のみ稼働。
+Goal なしだと CoverageTracker / Steering / DecisionCapture / Quiet が trivial skip (topics 空のため)。Dissent agent だけが動作。**Helmsman の本質は「ゴール宣言で論点分解 → 5 agents 並列稼働」**。
 
-→ Helmsman の本質的価値は **ゴール宣言 + 論点分解** で発揮される。Bot を「ただ会議に同席させる」だけでは Dissent しか機能しない。
+### 4. v2-fixed の Steering 0 件は仕様通り
+
+mini Steering 候補は 7 件出ていたが、Arbiter で Decision (priority 100) と競合し、Decision がほぼ全 tick で優先採用されたため Steering の出番がなかった。**rate_limit ではなく priority ソートの結果**。
 
 ## コスト分析
 
-| 項目 | v2 (gpt-5.4 keep) | v3 (cheap mini) | 削減率 |
+| Agent | v2-fixed (high) | v3-fixed (cheap) | 削減率 |
 |---|---:|---:|---:|
-| GoalDecomposer | $0.0057 | $0.0060 | — |
-| CoverageTracker (mini) | $0.0114 | $0.0130 | — |
-| SteeringAgent (mini) | $0.0030 | $0.0030 | — |
-| DecisionCapture (HIGH→MINI) | **$0.0807** | $0.0049 | **−94 %** |
-| DissentSurface (HIGH→MINI) | **$0.0793** | $0.0046 | **−94 %** |
-| **合計** | **$0.1801** | **$0.0315** | **−83 %** |
+| GoalDecomposer (high) | $0.0052 | $0.0060 | — |
+| CoverageTracker (mini) | $0.0114 | $0.0117 | — |
+| SteeringAgent (mini) | $0.0027 | $0.0027 | — |
+| DecisionCapture | $0.0728 | $0.0046 | **−94 %** |
+| DissentSurface | $0.0799 | $0.0044 | **−94 %** |
+| **合計** | **$0.1720** | **$0.0294** | **−83 %** |
 
-コストの 88% は Decision + Dissent が占める。mini 化で 1/6 に下がるが、**品質劣化が大きいため本番では gpt-5.4 維持を推奨**。
+`--cheap` は **DecisionCapture と DissentSurface を mini に落とす**。両 agent はそれぞれ ~50% のコスト占有 (high tier 時)。
 
-## 推奨運用
+## 推奨運用 (本結果を踏まえて)
 
 | シナリオ | 設定 |
 |---|---|
-| **本番 (Teams 派遣)** | デフォルト (gpt-5.4 / Decision + Dissent HIGH) — 1 会議 ~$0.20 |
-| **プロンプト調整サイクル** | `--cheap` + `--transcript`(同じ utterances を replay) — 70 秒 / $0.03 |
+| **本番 (Teams 派遣) - cost-optimal** | `--cheap` 相当 (Decision + Dissent も mini) — 1 会議 ~$0.03 |
+| **本番 (Teams 派遣) - quality-optimal** | デフォルト (Decision + Dissent gpt-5.4) — 1 会議 ~$0.18 |
+| **プロンプト調整サイクル** | `--cheap` + `--transcript` (utterances replay) — 60 秒 / $0.03 |
 | **STT 単体検証** | `--audio` + monitor mode (`--goal` 空) — Dissent のみ動作で $0.08 |
+
+> **更新**: 当初は「cheap モードは dev 用」と書いたが、再評価で **本番 cost-optimal 設定として推奨可** に格上げ。Dissent の reasoning depth が必要な厳格モードでのみ default 推奨。
+
+## 文書 RAG (DOC-*) は未検証
+
+3 つの run 全てで `Coverage.document_reference` は全 topic で `None`。本評価では文書を投入していないため正常動作。**RAG パスは別途、文書付き eval で検証が必要** (Phase 2 候補)。
+
+## Speech SDK 安定性
+
+- Speech SDK が 25 分 mp3 を 2 連続で途中 cancel する事象を確認
+- 修正: 長 WAV を 8 分単位でチャンク分割 (Microsoft 推奨パターン) + SDK 停止を timeout 付き ack
+- v2-fixed と v3-fixed はどちらも transcript replay (= STT スキップ) のため、Speech SDK 修正は別途 audio 入力で smoke 検証要
 
 ## 再現方法
 
 ```bash
-# v1 monitor
+# v1 monitor (Speech SDK + 音声)
 uv run python scripts/eval_offline.py --audio recording.mp3 --label monitor
 
-# v2 production
+# v2-fixed production (transcript モードで高速イテレーション)
 uv run python scripts/eval_offline.py \
-    --audio recording.mp3 \
-    --goal "<会議のゴール>" \
-    --label production
+    --transcript eval_runs/<earlier-run>/utterances.jsonl \
+    --goal "<会議のゴール>" --label production
 
-# v3 cheap (要 v2 の utterances.jsonl)
+# v3-fixed cheap
 uv run python scripts/eval_offline.py \
-    --transcript eval_runs/<v2 run>/utterances.jsonl \
-    --goal "<会議のゴール>" \
-    --cheap --label cheap
+    --transcript eval_runs/<earlier-run>/utterances.jsonl \
+    --goal "<会議のゴール>" --cheap --label cheap
 ```
 
 出力: `eval_runs/<timestamp>-<label>/` に `metrics.json` / `report.md` / `utterances.jsonl` / `interventions.jsonl` / `candidates.jsonl` / `ticks.jsonl` / `final_meeting.json` が生成される。
 
-## 未解決事項
+## 関連修正
 
-- Speech SDK が 25 分 mp3 を 2 回連続で途中 cancel する事象を確認 (v3 を transcript モードで実施した理由)。バックオフ + リトライまたは UNMIXED 切替 (本番では既に UNMIXED) で改善見込み
-- v3 の Steering 全弾きの原因切り分け: `candidates.jsonl` を見ると confidence は低くないので、Arbiter の評価軸を mini 出力にあわせて調整できるか要検討
-- 既存の AGENT_NAME ごとの Arbiter rule (rate limit / mode-conditional) が cheap モードで不利に働いていないか要分析
+- `commit 3a1f592`: Arbiter clock injection for eval correctness
+- `commit 1899ad1`: Speech SDK chunking + bounded stop wait
+- `commit f58b2fe`: `--cheap` flag (Decision + Dissent → mini)
