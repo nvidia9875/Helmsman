@@ -43,10 +43,12 @@ _default_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
-_cors_origins = (
-    ["*"] if _settings.environment == "dev" and not _settings.cors_allowed_origins
-    else (_settings.cors_allowed_origins.split(",") if _settings.cors_allowed_origins else _default_origins)
-)
+if _settings.environment == "dev" and not _settings.cors_allowed_origins:
+    _cors_origins = ["*"]
+elif _settings.cors_allowed_origins:
+    _cors_origins = _settings.cors_allowed_origins.split(",")
+else:
+    _cors_origins = _default_origins
 
 
 app = FastAPI(

@@ -63,15 +63,16 @@ async def invite_bot_to_teams_meeting(
         )
 
     # 遅延 import — SDK が重い + dev 環境で必要なら入れる
-    from azure.communication.callautomation.aio import CallAutomationClient
     from azure.communication.callautomation import TeamsMeetingLinkLocator
+    from azure.communication.callautomation.aio import CallAutomationClient
 
     settings = get_settings()
     assert settings.acs_connection_string
 
     operation_context = _build_operation_context(meeting_id, organizer_id)
 
-    # Media streaming WebSocket: ACS は wss:// 経由で raw PCM を流してくる + 双方向 (Phase C で TTS in)
+    # Media streaming WebSocket: ACS は wss:// 経由で raw PCM を流してくる
+    # + 双方向 (Phase C で TTS in)
     # path に meeting_id と organizer_id を含めて、ハンドラ側で session を引けるようにする
     cb_base = settings.acs_callback_base_url
     assert cb_base

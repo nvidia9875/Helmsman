@@ -1,7 +1,7 @@
 """Topic (論点) — Goal Decomposer が生成し Coverage Tracker が状態を更新する。"""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
 from uuid import uuid4
 

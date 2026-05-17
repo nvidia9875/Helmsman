@@ -1,9 +1,12 @@
 """Azure OpenAI client factory.
 
 Helmsman は 2 種類のデプロイメントを使い分ける:
-- HIGH (gpt-5.4)      : 高品質推論 (Goal Decomposer / Decision Capture / Dissent Surface)
-- MINI (gpt-5.4-mini) : 高頻度・低レイテンシ (Coverage Tracker / Time Keeper / Steering / Quiet / Arbiter)
-- REALTIME            : 音声リアルタイム介入 (L3 Speak) — 別接続が必要なため将来分
+- HIGH (gpt-5.4)
+    : 高品質推論 (Goal Decomposer / Decision Capture / Dissent Surface)
+- MINI (gpt-5.4-mini)
+    : 高頻度・低レイテンシ (Coverage Tracker / Time Keeper / Steering / Quiet / Arbiter)
+- REALTIME
+    : 音声リアルタイム介入 (L3 Speak) — 別接続が必要なため将来分
 """
 from __future__ import annotations
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,6 +19,7 @@ from helmsman.agents import (
     TimeKeeper,
 )
 from helmsman.agents.base import LLMAgent
+from helmsman.api.security import require_api_key
 from helmsman.core.logging import logger
 from helmsman.core.pricing import calculate_cost_usd
 from helmsman.core.usage import MeetingUsage
@@ -32,8 +34,6 @@ from helmsman.services.rag import (
     fetch_document_excerpts_simple,
     retrieve_excerpts_for_goal,
 )
-
-from helmsman.api.security import require_api_key
 
 router = APIRouter(
     prefix="/meetings",

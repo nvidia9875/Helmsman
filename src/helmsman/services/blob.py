@@ -31,8 +31,8 @@ async def upload_document_blob(
         return path
 
     # 遅延 import: Azure SDK 重いので使う時だけ
-    from azure.storage.blob.aio import BlobServiceClient
     from azure.storage.blob import ContentSettings
+    from azure.storage.blob.aio import BlobServiceClient
 
     async with BlobServiceClient.from_connection_string(
         settings.azure_storage_connection_string

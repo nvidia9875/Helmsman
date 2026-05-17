@@ -35,13 +35,13 @@ class CallSession:
     meeting_id: str
     organizer_id: str
     transcriber: StreamingTranscriber = field(default_factory=StreamingTranscriber)
-    utterances: list["Utterance"] = field(default_factory=list)
+    utterances: list[Utterance] = field(default_factory=list)
     pending_since_last_tick: int = 0
     last_tick_at: float | None = None
     consumer_task: asyncio.Task | None = None
     ticker_task: asyncio.Task | None = None
     # bidirectional Media Streaming で TTS を会議に流すための WebSocket 参照
-    media_ws: "WebSocket | None" = None
+    media_ws: WebSocket | None = None
 
 
 class CallRegistry:

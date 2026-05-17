@@ -79,6 +79,12 @@ target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+extend-ignore = [
+    "B008",   # FastAPI `Depends(...)` / `File(...)` を引数 default に置く標準パターンの誤検出
+    "UP042",  # StrEnum migration は behavior change を伴うため後日 (Python 3.11+ 推奨)
+    "SIM103", # negated-return 提案。可読性は好み
+    "SIM105", # try/except/pass を `contextlib.suppress` に書き換える提案。コード行数が増えるので保留
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -34,7 +34,10 @@ class TimeKeeper:
             return InterventionCandidate(
                 meeting_id=meeting.id,
                 agent=self.AGENT_NAME,
-                content=f"残り {int(time_left_pct * 100)}% で重要論点 {len(critical_unfinished)} つが未着手です: {names}",
+                content=(
+                    f"残り {int(time_left_pct * 100)}% で重要論点 "
+                    f"{len(critical_unfinished)} つが未着手です: {names}"
+                ),
                 reason="critical_unfinished",
                 confidence=0.95,
             )
