@@ -8,15 +8,28 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
       manifest: {
         name: 'Helmsman',
         short_name: 'Helmsman',
         description: 'Goal-driven AI meeting facilitator',
-        theme_color: '#0067c0',
-        background_color: '#0f0f0f',
+        theme_color: '#5b8def',
+        background_color: '#08080a',
         display: 'standalone',
-        icons: [],
+        icons: [
+          {
+            src: '/favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any',
+          },
+          {
+            src: '/maskable-icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable',
+          },
+        ],
       },
     }),
   ],

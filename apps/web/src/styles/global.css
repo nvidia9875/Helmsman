@@ -1,10 +1,12 @@
 @import url('https://rsms.me/inter/inter.css');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  /* Latin: Inter (geometric, neutral). Japanese: Noto Sans JP (matches Inter weight + x-height).
+     Order matters — Inter first means Latin glyphs use Inter; JP glyphs fall through to Noto. */
+  --font-display: 'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, 'Noto Sans JP', monospace;
 
   --bg-0: #08080a;
   --bg-1: #0d0d10;
