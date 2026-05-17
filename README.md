@@ -315,7 +315,31 @@ LLM 呼び出し ([`pricing.py`](./src/helmsman/core/pricing.py) の単価から
 | **Quiet Participant Activation Rate** | 会議内で底辺 25% の発言者が 1 件以上発言した割合 | 各 participant の z-score を再計算 | OFF: 30% → ON: **75%+** |
 | **Intervention Acceptance Rate** | Helmsman の介入提案が司会者にスルーされなかった割合 | UI の dismiss button vs. 経過時間 | ターゲット: **70%+** |
 
-計測スクリプトは [`tests/eval/`] に用意予定 (Phase E)。実会議 2 セット (Helmsman OFF と ON で同じ録音音声を使って疑似比較) で比較する。
+計測スクリプトは `scripts/eval_offline.py` で実装済。実会議の録音(WAV / MP3 / m4a) を `--audio` または書き起こし JSONL を `--transcript` で投入して評価できる。
+
+---
+
+## 実測結果 — 25 分の実会議で検証 (2026-05-17)
+
+公開済の日本語ビジネス会議音声 (25.7 分、YouTube マーケティング戦略定例) で
+パイプライン全体を回した結果。詳細は [`docs/eval-results.md`](./docs/eval-results.md)。
+
+| 指標 | 実測値 | 備考 |
+|---|---:|---|
+| 文字起こし | **173 発言 / 9,665 文字** | Azure Speech (ja-JP) |
+| 論点分解 | **5 topics** (本数 / 企画 / 表現 / 商談導線 / 評価指標) | GoalDecomposer |
+| **論点状態追跡** | **5 / 5 全部 decided** に到達 (tick 23 で完走) | Coverage Tracker |
+| **介入配信** | **15 件 (L2)** — Decision×10 / Dissent×3 / Steering×2 | Arbiter acceptance 45.5% |
+| **構造化された決定** | **10 件 / Decision precision 100%** | 全 10 件が実発言にマッチ (千人 KPI / 3H 戦略 / 青字テンプレ / 平日効果 など) |
+| **LLM コスト** | **$0.0294** (`--cheap`: Decision + Dissent も mini に) | 25 分の会議 1 本あたり |
+| **決定 1 件あたり** | **$0.003** | gpt-5.4 のみより 11× 安 |
+| Wall clock | 61 秒 | transcript replay モード (audio 入力時は ~13 分) |
+
+**コスト試算更新**: 当初試算 $0.66/会議 (60 分前提、gpt-5.4 で Decision/Dissent) に対し、
+**実測 $0.03 (25 分、mini)** — 試算の **1/20**。60 分会議でも $0.07 前後で収まる見込み。
+
+> **設定**: `uv run python scripts/eval_offline.py --audio meeting.mp3 --goal "<ゴール>" --cheap`
+> ([`--cheap`](./src/helmsman/agents/decision_capture.py) で Decision + Dissent を gpt-5.4-mini に切替)。
 
 ---
 
