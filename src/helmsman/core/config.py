@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     helmsman_api_key: str | None = None
     helmsman_require_auth: bool = False
 
+    # CORS: カンマ区切りの origin 一覧。空なら environment="dev" は "*"、それ以外は default の SWA host
+    cors_allowed_origins: str = ""
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

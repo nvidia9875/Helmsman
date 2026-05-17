@@ -18,6 +18,7 @@ from helmsman.agents import (
     TimeKeeper,
 )
 from helmsman.agents.base import LLMAgent
+from helmsman.core.logging import logger
 from helmsman.core.pricing import calculate_cost_usd
 from helmsman.core.usage import MeetingUsage
 from helmsman.models.intervention import InterventionCandidate, InterventionDelivery
@@ -121,9 +122,19 @@ async def start_meeting(
         series_index = (parent.series_index or 1) + 1
 
     decomposer = GoalDecomposer()
-    topics = await decomposer.run(
-        req.goal, req.mode, inherited_topics=inherited_topics or None
-    )
+    try:
+        topics = await decomposer.run(
+            req.goal, req.mode, inherited_topics=inherited_topics or None
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            "start_meeting.decomposer_failed",
+            goal=req.goal[:80],
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        # LLM 失敗時は空 topics で会議を作る (Coverage Tracker が後で動的に追加可能)
+        topics = []
     meeting = Meeting(
         organizer_id=req.organizer_id,
         goal=req.goal,
@@ -220,12 +231,22 @@ async def redecompose_meeting(
 
     inherited = [t for t in meeting.topics if t.state.value != "decided"]
     decomposer = GoalDecomposer()
-    new_topics = await decomposer.run(
-        meeting.goal,
-        meeting.mode,
-        inherited_topics=inherited or None,
-        document_excerpts=excerpts or None,
-    )
+    try:
+        new_topics = await decomposer.run(
+            meeting.goal,
+            meeting.mode,
+            inherited_topics=inherited or None,
+            document_excerpts=excerpts or None,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            "redecompose.failed",
+            meeting_id=meeting_id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        # 失敗時は既存 topics をそのまま (新規論点は加えない)
+        new_topics = meeting.topics
     meeting.topics = new_topics
     _accumulate_usage(meeting.usage, [decomposer])
     await repo.upsert(meeting)
