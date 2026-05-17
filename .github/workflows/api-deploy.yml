@@ -14,7 +14,9 @@ on:
 env:
   RESOURCE_GROUP: rg-helmsman-dev
   CONTAINER_APP_NAME: helmsman-dev-api
-  ACR_NAME: helmsmandev # 必要なら ACR を作成して使う
+  ACR_NAME: helmsmandevacr
+  ACR_LOCATION: westus2
+  IMAGE_REPO: helmsman-api
   IMAGE_TAG: ${{ github.sha }}
 
 permissions:
@@ -44,14 +46,61 @@ jobs:
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
 
-      - name: Build and Deploy Container Image
+      # az containerapp up --source は CLI バグ (NoneType.linux) があるため
+      # ACR + az acr build + az containerapp update --image の素直な流れに分解
+      - name: Ensure ACR exists
         if: env.AZURE_CLIENT_ID != ''
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
-          az containerapp up \
-            --name $CONTAINER_APP_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --source . \
-            --ingress external \
-            --target-port 8000
+          if ! az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            az acr create \
+              --name "$ACR_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --sku Basic \
+              --location "$ACR_LOCATION" \
+              --admin-enabled true
+          fi
+
+      - name: Grant Container App's managed identity AcrPull on ACR
+        if: env.AZURE_CLIENT_ID != ''
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          PRINCIPAL_ID=$(az containerapp show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query identity.principalId -o tsv)
+          ACR_ID=$(az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query id -o tsv)
+          # idempotent: 既に付与済なら no-op
+          az role assignment create \
+            --assignee-object-id "$PRINCIPAL_ID" \
+            --assignee-principal-type ServicePrincipal \
+            --role AcrPull \
+            --scope "$ACR_ID" 2>/dev/null || true
+
+      - name: Build image in ACR
+        if: env.AZURE_CLIENT_ID != ''
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "$IMAGE_REPO:$IMAGE_TAG" \
+            --image "$IMAGE_REPO:latest" \
+            --file Dockerfile .
+
+      - name: Update Container App image
+        if: env.AZURE_CLIENT_ID != ''
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        run: |
+          az containerapp registry set \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --server "${ACR_NAME}.azurecr.io" \
+            --identity system
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "${ACR_NAME}.azurecr.io/${IMAGE_REPO}:${IMAGE_TAG}"
