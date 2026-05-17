@@ -1,4 +1,4 @@
-import { Caption1, ProgressBar, makeStyles, tokens } from '@fluentui/react-components';
+import { ProgressBar, makeStyles } from '@fluentui/react-components';
 
 import type { MeetingUsage } from '@/lib/api';
 
@@ -7,6 +7,7 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
+    padding: '4px 0',
   },
   headerRow: {
     display: 'flex',
@@ -14,37 +15,47 @@ const useStyles = makeStyles({
     alignItems: 'baseline',
   },
   label: {
-    color: tokens.colorNeutralForeground2,
-    fontSize: '12px',
-    letterSpacing: '0.04em',
+    color: 'var(--text-3)',
+    fontSize: '10px',
+    letterSpacing: '0.12em',
     textTransform: 'uppercase',
+    fontFamily: 'var(--font-mono)',
+    fontWeight: 700,
   },
   totalCost: {
-    fontSize: '24px',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '26px',
     fontWeight: 600,
-    color: tokens.colorNeutralForeground1,
+    color: 'var(--text-1)',
     fontVariantNumeric: 'tabular-nums',
-    letterSpacing: '-0.01em',
+    letterSpacing: '-0.02em',
   },
   metaGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: '12px',
-    paddingTop: '8px',
+    paddingTop: '12px',
     paddingBottom: '12px',
-    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderTop: '1px solid var(--border-hairline)',
+    borderBottom: '1px solid var(--border-hairline)',
   },
   metaCell: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
   },
+  metaCellLabel: {
+    fontSize: '10px',
+    color: 'var(--text-3)',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    fontFamily: 'var(--font-mono)',
+  },
   metaValue: {
-    fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
+    fontFamily: 'var(--font-mono)',
     fontVariantNumeric: 'tabular-nums',
-    fontSize: '13px',
-    color: tokens.colorNeutralForeground1,
+    fontSize: '14px',
+    color: 'var(--text-1)',
   },
   agentList: {
     display: 'flex',
@@ -61,11 +72,23 @@ const useStyles = makeStyles({
     justifyContent: 'space-between',
     gap: '8px',
     fontSize: '12px',
-    color: tokens.colorNeutralForeground2,
+    color: 'var(--text-2)',
+  },
+  agentName: {
+    color: 'var(--text-1)',
+    fontSize: '12px',
+    fontWeight: 500,
+  },
+  agentMeta: {
+    fontFamily: 'var(--font-mono)',
+    fontSize: '11px',
+    color: 'var(--text-3)',
+    fontVariantNumeric: 'tabular-nums',
   },
   empty: {
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-3)',
     fontSize: '13px',
+    fontStyle: 'italic',
   },
 });
 
@@ -93,17 +116,17 @@ export function CostCard({ usage }: { usage: MeetingUsage }) {
 
       <div className={styles.metaGrid}>
         <div className={styles.metaCell}>
-          <Caption1>Total tokens</Caption1>
+          <span className={styles.metaCellLabel}>Total tokens</span>
           <span className={styles.metaValue}>{formatTokens(usage.total_tokens)}</span>
         </div>
         <div className={styles.metaCell}>
-          <Caption1>In / Out</Caption1>
+          <span className={styles.metaCellLabel}>In / Out</span>
           <span className={styles.metaValue}>
             {formatTokens(usage.total_prompt_tokens)} / {formatTokens(usage.total_completion_tokens)}
           </span>
         </div>
         <div className={styles.metaCell}>
-          <Caption1>呼び出し</Caption1>
+          <span className={styles.metaCellLabel}>呼び出し</span>
           <span className={styles.metaValue}>{usage.call_count}</span>
         </div>
       </div>
@@ -117,8 +140,8 @@ export function CostCard({ usage }: { usage: MeetingUsage }) {
             return (
               <div key={agent.agent_name} className={styles.agentRow}>
                 <div className={styles.agentRowHeader}>
-                  <span>{agent.agent_name}</span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  <span className={styles.agentName}>{agent.agent_name}</span>
+                  <span className={styles.agentMeta}>
                     {formatUsd(agent.cost_usd)} · {formatTokens(agent.total_tokens)} tok · ×{agent.call_count}
                   </span>
                 </div>

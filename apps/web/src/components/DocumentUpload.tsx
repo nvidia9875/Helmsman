@@ -1,13 +1,4 @@
-import {
-  Badge,
-  Body1,
-  Button,
-  Caption1,
-  Spinner,
-  Title3,
-  makeStyles,
-  tokens,
-} from '@fluentui/react-components';
+import { Badge, Body1, Button, Spinner, makeStyles } from '@fluentui/react-components';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 
@@ -15,27 +6,37 @@ import { api, type DocumentStatus, type MeetingDocument } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
-    border: `1px solid ${tokens.colorNeutralStroke1}`,
-    borderRadius: tokens.borderRadiusLarge,
-    padding: '16px',
-    marginTop: '16px',
+    padding: '4px 0',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
   },
+  intro: {
+    color: 'var(--text-3)',
+    fontSize: '12px',
+    lineHeight: 1.6,
+    margin: 0,
+  },
   dropzone: {
-    border: `2px dashed ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusMedium,
-    padding: '24px',
+    border: '1px dashed var(--border-default)',
+    borderRadius: '10px',
+    padding: '28px',
     textAlign: 'center',
     cursor: 'pointer',
-    transitionProperty: 'background-color',
-    transitionDuration: '100ms',
-    transitionTimingFunction: 'ease',
+    color: 'var(--text-2)',
+    fontSize: '13px',
+    backgroundColor: 'var(--bg-0)',
+    transitionProperty: 'border-color, background-color, color',
+    transitionDuration: '120ms',
+    ':hover': {
+      border: '1px dashed var(--accent)',
+      color: 'var(--text-1)',
+    },
   },
   dropzoneActive: {
-    backgroundColor: tokens.colorBrandBackground2,
-    border: `2px dashed ${tokens.colorBrandStroke1}`,
+    border: '1px dashed var(--accent)',
+    backgroundColor: 'rgba(91, 141, 239, 0.08)',
+    color: 'var(--text-1)',
   },
   docList: {
     display: 'flex',
@@ -45,15 +46,23 @@ const useStyles = makeStyles({
   docRow: {
     display: 'grid',
     gridTemplateColumns: '1fr auto',
-    gap: '8px',
+    gap: '12px',
     alignItems: 'center',
-    padding: '8px 12px',
-    borderRadius: tokens.borderRadiusMedium,
-    backgroundColor: tokens.colorNeutralBackground2,
+    padding: '10px 12px',
+    borderRadius: '8px',
+    border: '1px solid var(--border-hairline)',
+    backgroundColor: 'var(--bg-2)',
+  },
+  docName: {
+    fontSize: '13px',
+    color: 'var(--text-1)',
+    fontWeight: 500,
   },
   docMeta: {
-    color: tokens.colorNeutralForeground3,
-    fontSize: '12px',
+    color: 'var(--text-3)',
+    fontSize: '11px',
+    marginTop: '2px',
+    fontFamily: 'var(--font-mono)',
   },
   hidden: {
     display: 'none',
@@ -97,8 +106,7 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) =>
-      api.uploadDocument(meetingId, organizerId, file, uploadedBy),
+    mutationFn: (file: File) => api.uploadDocument(meetingId, organizerId, file, uploadedBy),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents', meetingId, organizerId] });
     },
@@ -118,12 +126,9 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
 
   return (
     <section className={styles.root} aria-label="参考文書アップロード">
-      <Title3 as="h2" style={{ margin: 0 }}>
-        📎 参考文書 ({documents?.length ?? 0})
-      </Title3>
-      <Caption1>
+      <p className={styles.intro}>
         PDF / Word / PPT / TXT / MD をドラッグ&ドロップ。アップロード後、論点を再分解できます。
-      </Caption1>
+      </p>
 
       <label
         className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ''}`}
@@ -139,7 +144,7 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
         }}
         onClick={() => inputRef.current?.click()}
       >
-        <Body1>{uploadMutation.isPending ? 'アップロード中…' : 'クリック または ドラッグして追加'}</Body1>
+        {uploadMutation.isPending ? 'アップロード中…' : 'クリック または ドラッグして追加'}
         <input
           ref={inputRef}
           type="file"
@@ -154,10 +159,10 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
           {documents.map((d: MeetingDocument) => (
             <div key={d.id} className={styles.docRow}>
               <div>
-                <Body1>{d.filename}</Body1>
+                <div className={styles.docName}>{d.filename}</div>
                 <div className={styles.docMeta}>
-                  {(d.size_bytes / 1024).toFixed(1)} KB ・ {d.chunk_count} chunks
-                  {d.error_message && ` ・ ${d.error_message}`}
+                  {(d.size_bytes / 1024).toFixed(1)} KB · {d.chunk_count} chunks
+                  {d.error_message && ` · ${d.error_message}`}
                 </div>
               </div>
               <Badge appearance="filled" color={STATUS_COLOR[d.status]}>
@@ -180,14 +185,14 @@ export function DocumentUpload({ meetingId, organizerId, uploadedBy }: Props) {
                 <Spinner size="tiny" /> 論点を再分解中…
               </>
             ) : (
-              '🔄 添付文書をもとに論点を再分解する'
+              '添付文書をもとに論点を再分解する'
             )}
           </Button>
         </div>
       )}
 
       {uploadMutation.isError && (
-        <Body1 style={{ color: tokens.colorPaletteRedForeground1 }}>
+        <Body1 style={{ color: '#fca5a5', fontSize: 12 }}>
           アップロード失敗: {String(uploadMutation.error)}
         </Body1>
       )}

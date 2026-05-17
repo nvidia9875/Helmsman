@@ -6,22 +6,41 @@ import {
   Input,
   Spinner,
   makeStyles,
-  tokens,
 } from '@fluentui/react-components';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Section } from '@/components/primitives/Section';
+import { Pill } from '@/components/primitives/Pill';
 import { api, type Meeting } from '@/lib/api';
 
 const useStyles = makeStyles({
+  root: {
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '10px',
+    backgroundColor: 'var(--bg-1)',
+    overflow: 'hidden',
+  },
+  header: {
+    padding: '14px 18px',
+    borderBottom: '1px solid var(--border-hairline)',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: 'var(--text-1)',
+    margin: 0,
+  },
   body: {
+    padding: '16px 18px 18px',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
   },
   intro: {
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-3)',
     fontSize: '12px',
     lineHeight: 1.6,
     margin: 0,
@@ -29,16 +48,20 @@ const useStyles = makeStyles({
   controls: {
     display: 'grid',
     gridTemplateColumns: '1fr auto',
-    gap: '8px',
+    gap: '10px',
     alignItems: 'flex-end',
+    '@media (max-width: 540px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
   errorText: {
     color: '#fca5a5',
     fontSize: '12px',
   },
   meta: {
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-3)',
     fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
   },
 });
 
@@ -71,7 +94,13 @@ export function TeamsBotInvite({ meeting, organizerId }: Props) {
   const isValidUrl = /^https:\/\/teams\.microsoft\.com\/.+meetup-join/.test(url);
 
   return (
-    <Section title="Bot を Teams 会議に派遣">
+    <section className={styles.root} aria-label="Teams Bot 派遣">
+      <div className={styles.header}>
+        <h2 className={styles.title}>Bot dispatch · Teams 会議</h2>
+        <Pill kind={isActive ? 'success' : 'neutral'}>
+          {isActive ? 'CONNECTED' : 'STANDBY'}
+        </Pill>
+      </div>
       <div className={styles.body}>
         <p className={styles.intro}>
           Teams カレンダーの会議で「参加リンクをコピー」した URL を貼り付け。
@@ -126,10 +155,10 @@ export function TeamsBotInvite({ meeting, organizerId }: Props) {
 
         {meeting.bot_call_connection_id && (
           <Caption1 className={styles.meta}>
-            Call ID: {meeting.bot_call_connection_id.slice(0, 8)}…
+            CALL_ID · {meeting.bot_call_connection_id.slice(0, 8)}…
           </Caption1>
         )}
       </div>
-    </Section>
+    </section>
   );
 }
