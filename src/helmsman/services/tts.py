@@ -60,7 +60,7 @@ async def synthesize_pcm(text: str) -> bytes:
 
 
 async def play_pcm_into_websocket(
-    websocket: "WebSocket", pcm: bytes, *, real_time: bool = True
+    websocket: WebSocket, pcm: bytes, *, real_time: bool = True
 ) -> None:
     """PCM bytes を ACS bidirectional WebSocket に base64 で流す。
 
@@ -97,7 +97,7 @@ async def play_pcm_into_websocket(
     logger.info("tts.played", text_bytes=len(pcm), frames=total_frames)
 
 
-async def speak_into_call(websocket: "WebSocket", text: str) -> None:
+async def speak_into_call(websocket: WebSocket, text: str) -> None:
     """テキストを TTS → 会議に音声として流す (Phase C のメイン入口)。"""
     if not text.strip():
         return

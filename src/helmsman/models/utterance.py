@@ -1,7 +1,7 @@
 """Utterance — 発言ストリームの 1 単位。"""
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import uuid4
 
 from pydantic import BaseModel, Field

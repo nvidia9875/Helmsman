@@ -7,7 +7,7 @@ import pytest
 
 from helmsman.agents.arbiter import InterventionArbiter
 from helmsman.models.intervention import InterventionCandidate, InterventionLevel
-from helmsman.models.meeting import Meeting, UserIntensity
+from helmsman.models.meeting import UserIntensity
 from helmsman.models.participant import Participant
 
 
