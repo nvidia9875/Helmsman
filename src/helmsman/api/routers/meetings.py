@@ -174,6 +174,72 @@ async def list_meetings(
     return await repo.list_by_organizer(organizer_id, limit=limit)
 
 
+class UsageSummaryByDay(BaseModel):
+    date: str
+    cost_usd: float
+    total_tokens: int
+    meeting_count: int
+
+
+class UsageSummary(BaseModel):
+    total_meetings: int
+    total_cost_usd: float
+    total_tokens: int
+    avg_cost_per_meeting_usd: float
+    by_day: list[UsageSummaryByDay]
+    by_agent: dict[str, float]  # agent_name → cost_usd
+
+
+@router.get("/usage/summary", response_model=UsageSummary)
+async def get_usage_summary(
+    organizer_id: str,
+    days: int = 30,
+    repo: MeetingRepository = Depends(get_repo),
+) -> UsageSummary:
+    """主催者の全会議を集計したコストサマリー (ランディング画面用)。"""
+    meetings = await repo.list_by_organizer(organizer_id, limit=200)
+    total_cost = 0.0
+    total_tokens = 0
+    by_agent: dict[str, float] = {}
+    by_day: dict[str, dict] = {}
+    counted = 0
+    for m in meetings:
+        if not m.started_at:
+            continue
+        # 日付キー (UTC)
+        day = m.started_at.date().isoformat()
+        bucket = by_day.setdefault(
+            day, {"cost_usd": 0.0, "total_tokens": 0, "meeting_count": 0}
+        )
+        cost = m.usage.total_cost_usd
+        bucket["cost_usd"] += cost
+        bucket["total_tokens"] += m.usage.total_tokens
+        bucket["meeting_count"] += 1
+        total_cost += cost
+        total_tokens += m.usage.total_tokens
+        for agent_name, rollup in m.usage.by_agent.items():
+            by_agent[agent_name] = by_agent.get(agent_name, 0.0) + rollup.cost_usd
+        counted += 1
+
+    sorted_days = sorted(by_day.items())[-days:]
+    return UsageSummary(
+        total_meetings=counted,
+        total_cost_usd=round(total_cost, 6),
+        total_tokens=total_tokens,
+        avg_cost_per_meeting_usd=round(total_cost / counted, 6) if counted else 0.0,
+        by_day=[
+            UsageSummaryByDay(
+                date=d,
+                cost_usd=round(b["cost_usd"], 6),
+                total_tokens=b["total_tokens"],
+                meeting_count=b["meeting_count"],
+            )
+            for d, b in sorted_days
+        ],
+        by_agent={k: round(v, 6) for k, v in by_agent.items()},
+    )
+
+
 @router.get("/series/{series_id}", response_model=list[Meeting])
 async def list_series_meetings(
     series_id: str,

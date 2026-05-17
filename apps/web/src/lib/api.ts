@@ -82,6 +82,22 @@ export interface BotTranscript {
   utterances: Utterance[];
 }
 
+export interface UsageSummaryByDay {
+  date: string;
+  cost_usd: number;
+  total_tokens: number;
+  meeting_count: number;
+}
+
+export interface UsageSummary {
+  total_meetings: number;
+  total_cost_usd: number;
+  total_tokens: number;
+  avg_cost_per_meeting_usd: number;
+  by_day: UsageSummaryByDay[];
+  by_agent: Record<string, number>;
+}
+
 export interface Participant {
   id: string;
   meeting_id: string;
@@ -197,6 +213,10 @@ export const api = {
   listMeetings: (organizerId: string, limit = 20) =>
     request<Meeting[]>(
       `/meetings?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,
+    ),
+  getUsageSummary: (organizerId: string, days = 30) =>
+    request<UsageSummary>(
+      `/meetings/usage/summary?organizer_id=${encodeURIComponent(organizerId)}&days=${days}`,
     ),
   listSeries: (seriesId: string, organizerId: string) =>
     request<Meeting[]>(
