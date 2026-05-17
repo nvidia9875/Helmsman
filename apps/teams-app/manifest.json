@@ -1,0 +1,48 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "0.1.0",
+  "id": "00000000-0000-0000-0000-000000000000",
+  "packageName": "com.helmsman.app",
+  "developer": {
+    "name": "Helmsman",
+    "websiteUrl": "https://github.com/nvidia9875/Helmsman",
+    "privacyUrl": "https://github.com/nvidia9875/Helmsman/blob/main/README.md",
+    "termsOfUseUrl": "https://github.com/nvidia9875/Helmsman/blob/main/README.md"
+  },
+  "icons": {
+    "color": "icons/color.png",
+    "outline": "icons/outline.png"
+  },
+  "name": {
+    "short": "Helmsman",
+    "full": "Helmsman — Goal-driven AI meeting facilitator"
+  },
+  "description": {
+    "short": "Teams 会議に AI 副操縦士を派遣する。",
+    "full": "Helmsman は Teams 会議に Bot として参加し、論点を分解し、時間を管理し、議論の脱線を戻し、押し殺された反対意見を浮かび上がらせ、決定を構造化する AI 副操縦士です。会議のホストはダッシュボードから派遣を制御し、リアルタイムで介入提案を確認できます。"
+  },
+  "accentColor": "#0078D4",
+  "configurableTabs": [
+    {
+      "configurationUrl": "https://kind-glacier-0122f6400.7.azurestaticapps.net/teams-config",
+      "canUpdateConfiguration": true,
+      "scopes": ["team", "groupChat"],
+      "context": ["channelTab"]
+    }
+  ],
+  "staticTabs": [
+    {
+      "entityId": "helmsman-dashboard",
+      "name": "Mission Control",
+      "contentUrl": "https://kind-glacier-0122f6400.7.azurestaticapps.net/",
+      "websiteUrl": "https://kind-glacier-0122f6400.7.azurestaticapps.net/",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": [
+    "kind-glacier-0122f6400.7.azurestaticapps.net",
+    "helmsman-dev-api.ashyocean-e634ae12.westus2.azurecontainerapps.io"
+  ]
+}
