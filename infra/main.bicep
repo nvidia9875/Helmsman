@@ -26,6 +26,9 @@ param existingOpenAIKey string = ''
 @description('Container Apps に注入するアプリ イメージ (初回は hello world)')
 param appImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 
+@description('ACS Call Automation の webhook 送信先 (Container App FQDN)。初回 deploy 後に判明する FQDN を 2 回目以降に渡す。空文字なら ACS bot 機能はオフ。')
+param containerAppCallbackBaseUrl string = 'https://helmsman-dev-api.ashyocean-e634ae12.westus2.azurecontainerapps.io'
+
 @description('リソース命名の suffix（ユニーク性確保用）')
 param resourceSuffix string = uniqueString(resourceGroup().id)
 
@@ -46,6 +49,7 @@ var speechName = '${namePrefix}-speech'
 var searchName = take('${namePrefix}-search-${resourceSuffix}', 60)
 var docIntelName = take('${namePrefix}-docintel', 24)
 var staticWebAppName = '${namePrefix}-web'
+var acsName = '${namePrefix}-acs'
 
 // ===== Modules =====
 module monitoring 'modules/monitoring.bicep' = {
@@ -113,6 +117,14 @@ module staticwebapp 'modules/staticwebapp.bicep' = {
   }
 }
 
+module acs 'modules/acs.bicep' = {
+  name: 'acs-deployment'
+  params: {
+    acsName: acsName
+    dataLocation: 'Japan'
+  }
+}
+
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyvault-deployment'
   params: {
@@ -140,6 +152,10 @@ module containerApps 'modules/containerapps.bicep' = {
     azureSearchKey: search.outputs.adminKey
     azureDocIntelEndpoint: docintel.outputs.endpoint
     azureDocIntelKey: docintel.outputs.key
+    azureSpeechKey: speech.outputs.key
+    azureSpeechRegion: speech.outputs.region
+    acsConnectionString: acs.outputs.connectionString
+    acsCallbackBaseUrl: containerAppCallbackBaseUrl
   }
 }
 
@@ -174,3 +190,5 @@ output docIntelEndpoint string = docintel.outputs.endpoint
 output documentsContainerName string = storage.outputs.documentsContainerName
 output staticWebAppHostName string = staticwebapp.outputs.defaultHostName
 output staticWebAppName string = staticwebapp.outputs.name
+output acsName string = acs.outputs.name
+output acsEndpoint string = acs.outputs.endpoint

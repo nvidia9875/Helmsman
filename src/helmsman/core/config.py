@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     azure_docintel_endpoint: str | None = None
     azure_docintel_key: str | None = None
 
+    # ----- Azure Communication Services (Teams bot) -----
+    acs_connection_string: str | None = None
+    acs_callback_base_url: str | None = None
+    # ACS が webhook を叩く先のパス (callback_base_url + このパス)
+    acs_callback_path: str = "/bot/callback"
+
     # ----- Azure AI Speech -----
     azure_speech_key: str | None = None
     azure_speech_region: str | None = None

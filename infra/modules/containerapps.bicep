@@ -34,6 +34,16 @@ param azureDocIntelEndpoint string = ''
 @secure()
 @description('Azure AI Document Intelligence key')
 param azureDocIntelKey string = ''
+@description('Azure AI Speech key (for Teams bot STT/TTS)')
+@secure()
+param azureSpeechKey string = ''
+@description('Azure AI Speech region (e.g. westus2)')
+param azureSpeechRegion string = ''
+@description('Azure Communication Services connection string')
+@secure()
+param acsConnectionString string = ''
+@description('Public callback base URL — the FQDN that ACS Call Automation hits for webhooks')
+param acsCallbackBaseUrl string = ''
 
 resource environment 'Microsoft.App/managedEnvironments@2024-10-02-preview' = {
   name: environmentName
@@ -64,6 +74,8 @@ var appSecrets = [
   { name: 'azure-storage-connection-string', value: azureStorageConnectionString }
   { name: 'azure-search-key', value: azureSearchKey }
   { name: 'azure-docintel-key', value: azureDocIntelKey }
+  { name: 'azure-speech-key', value: azureSpeechKey }
+  { name: 'acs-connection-string', value: acsConnectionString }
 ]
 
 // envvars — 値が空でない設定のみ Container に渡す
@@ -92,7 +104,15 @@ var envDocIntel = empty(azureDocIntelEndpoint) ? [] : [
   { name: 'AZURE_DOCINTEL_ENDPOINT', value: azureDocIntelEndpoint }
   { name: 'AZURE_DOCINTEL_KEY', secretRef: 'azure-docintel-key' }
 ]
-var appEnv = concat(envBase, envOpenAI, envCosmos, envStorage, envSearch, envDocIntel)
+var envSpeech = empty(azureSpeechRegion) ? [] : [
+  { name: 'AZURE_SPEECH_KEY', secretRef: 'azure-speech-key' }
+  { name: 'AZURE_SPEECH_REGION', value: azureSpeechRegion }
+]
+var envACS = empty(acsConnectionString) ? [] : [
+  { name: 'ACS_CONNECTION_STRING', secretRef: 'acs-connection-string' }
+  { name: 'ACS_CALLBACK_BASE_URL', value: acsCallbackBaseUrl }
+]
+var appEnv = concat(envBase, envOpenAI, envCosmos, envStorage, envSearch, envDocIntel, envSpeech, envACS)
 
 resource containerApp 'Microsoft.App/containerApps@2024-10-02-preview' = {
   name: appName

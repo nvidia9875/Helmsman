@@ -22,3 +22,5 @@ resource speech 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
 output endpoint string = speech.properties.endpoint
 output region string = speech.location
 output name string = speech.name
+#disable-next-line outputs-should-not-contain-secrets
+output key string = speech.listKeys().key1

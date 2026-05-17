@@ -68,6 +68,12 @@ class Meeting(BaseModel):
     # ----- LLM usage / コスト集計 -----
     usage: MeetingUsage = Field(default_factory=MeetingUsage)
 
+    # ----- Teams Bot 連携 (ACS Call Automation) -----
+    teams_meeting_url: str | None = None
+    bot_call_connection_id: str | None = None
+    bot_status: str = "idle"  # idle / connecting / in_call / disconnected / failed
+    bot_last_event_at: datetime | None = None
+
     @property
     def time_remaining_pct(self) -> float:
         """残時間割合 (0.0-1.0)。"""
