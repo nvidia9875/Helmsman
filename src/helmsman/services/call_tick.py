@@ -145,6 +145,8 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     if delivery:
         from datetime import UTC, datetime
         meeting.last_intervention_at = datetime.now(UTC)
+        meeting.delivered_interventions.append(delivery)
+        meeting.delivered_interventions = meeting.delivered_interventions[-20:]
 
     await repo.upsert(meeting)
 
