@@ -74,6 +74,7 @@ export interface Meeting {
   bot_call_connection_id: string | null;
   bot_status: BotStatus;
   bot_last_event_at: string | null;
+  delivered_interventions: InterventionDelivery[];
 }
 
 export interface BotTranscript {

@@ -417,6 +417,9 @@ async def tick(
 
     if delivery:
         meeting.last_intervention_at = datetime.now(UTC)
+        meeting.delivered_interventions.append(delivery)
+        # 最新 20 件のみ保持 (Cosmos の document サイズ + UI スクロール量を抑える)
+        meeting.delivered_interventions = meeting.delivered_interventions[-20:]
 
     await repo.upsert(meeting)
 

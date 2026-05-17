@@ -8,6 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field
 
 from helmsman.core.usage import MeetingUsage
+from helmsman.models.intervention import InterventionDelivery
 from helmsman.models.topic import Topic
 
 
@@ -73,6 +74,9 @@ class Meeting(BaseModel):
     bot_call_connection_id: str | None = None
     bot_status: str = "idle"  # idle / connecting / in_call / disconnected / failed
     bot_last_event_at: datetime | None = None
+
+    # ----- Intervention 履歴 (Frontend が feed として表示) -----
+    delivered_interventions: list[InterventionDelivery] = Field(default_factory=list)
 
     @property
     def time_remaining_pct(self) -> float:
