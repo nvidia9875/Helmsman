@@ -64,22 +64,8 @@ jobs:
               --admin-enabled true
           fi
 
-      - name: Grant Container App's managed identity AcrPull on ACR
-        if: env.AZURE_CLIENT_ID != ''
-        env:
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        run: |
-          PRINCIPAL_ID=$(az containerapp show \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query identity.principalId -o tsv)
-          ACR_ID=$(az acr show --name "$ACR_NAME" --resource-group "$RESOURCE_GROUP" --query id -o tsv)
-          # idempotent: 既に付与済なら no-op
-          az role assignment create \
-            --assignee-object-id "$PRINCIPAL_ID" \
-            --assignee-principal-type ServicePrincipal \
-            --role AcrPull \
-            --scope "$ACR_ID" 2>/dev/null || true
+      # Managed identity の RBAC 伝搬待ちが不安定なので admin 認証を使う
+      # (admin-enabled=true で create 済)
 
       # ACR Tasks がサブスクで禁止されているケースに備えて runner で docker build
       - name: Set up Docker Buildx
@@ -109,16 +95,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Update Container App image
+      - name: Update Container App image (admin auth)
         if: env.AZURE_CLIENT_ID != ''
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
         run: |
+          ACR_USER=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
+          ACR_PASS=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
           az containerapp registry set \
             --name "$CONTAINER_APP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
             --server "${ACR_NAME}.azurecr.io" \
-            --identity system
+            --username "$ACR_USER" \
+            --password "$ACR_PASS"
           az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
