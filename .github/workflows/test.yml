@@ -77,3 +77,7 @@ jobs:
       - name: Build (tsc + vite)
         working-directory: apps/web
         run: npm run build
+
+      - name: Vitest (frontend unit tests)
+        working-directory: apps/web
+        run: npm test
