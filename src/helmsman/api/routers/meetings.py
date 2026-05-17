@@ -318,6 +318,60 @@ async def get_meeting_usage(
     return m.usage
 
 
+class SetGoalRequest(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=500)
+    mode: MeetingMode | None = None
+
+
+@router.post("/{meeting_id}/set-goal", response_model=Meeting)
+async def set_goal(
+    meeting_id: str,
+    organizer_id: str,
+    req: SetGoalRequest,
+    repo: MeetingRepository = Depends(get_repo),
+) -> Meeting:
+    """会議のゴールを後から追加 (or 変更) し、即時に論点を再分解する。
+
+    派遣時に "監視のみ" モード (ゴール空) で開始した後、議論が進んだ段階で
+    「実はこれが本論だった」とゴール宣言したくなったときに使う。
+    """
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting:
+        raise HTTPException(404, "meeting not found")
+    if req.mode is not None:
+        meeting.mode = req.mode
+    meeting.goal = req.goal
+
+    # 添付文書があれば RAG も使って分解
+    doc_excerpts = ""
+    if meeting.document_ids:
+        try:
+            doc_excerpts = await retrieve_excerpts_for_goal(
+                meeting_id=meeting_id,
+                goal=req.goal,
+                repo=DocumentRepository(),
+                usage_sink=meeting.usage,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning("set_goal.excerpts_failed", error=str(e))
+
+    decomposer = GoalDecomposer()
+    try:
+        meeting.topics = await decomposer.run(
+            req.goal, meeting.mode, document_excerpts=doc_excerpts or None
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            "set_goal.decomposer_failed",
+            meeting_id=meeting_id,
+            error=str(e),
+        )
+        meeting.topics = []
+    _accumulate_usage(meeting.usage, [decomposer])
+    await repo.upsert(meeting)
+    return meeting
+
+
 @router.post("/{meeting_id}/redecompose", response_model=Meeting)
 async def redecompose_meeting(
     meeting_id: str,

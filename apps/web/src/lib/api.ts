@@ -239,6 +239,14 @@ export const api = {
       `/meetings/${id}/redecompose?organizer_id=${encodeURIComponent(organizerId)}`,
       { method: 'POST' },
     ),
+  setGoal: (id: string, organizerId: string, goal: string, mode?: MeetingMode) =>
+    request<Meeting>(
+      `/meetings/${id}/set-goal?organizer_id=${encodeURIComponent(organizerId)}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ goal, ...(mode ? { mode } : {}) }),
+      },
+    ),
   listDocuments: (id: string, organizerId: string) =>
     request<MeetingDocument[]>(
       `/meetings/${id}/documents?organizer_id=${encodeURIComponent(organizerId)}`,

@@ -16,6 +16,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { BotMissionCard } from '@/components/BotMissionCard';
 import { CostCard } from '@/components/CostCard';
 import { DocumentUpload } from '@/components/DocumentUpload';
+import { GoalEditor } from '@/components/GoalEditor';
 import { InterventionFeed } from '@/components/InterventionFeed';
 import { LiveTranscript } from '@/components/LiveTranscript';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
@@ -105,7 +106,7 @@ export function MeetingRoom() {
   if (isLoading || !meeting) {
     return (
       <div className={styles.loading}>
-        <Spinner size="large" label="会議を読み込み中..." />
+        <Spinner size="large" label="🛰 司令室を準備中..." />
       </div>
     );
   }
@@ -123,12 +124,16 @@ export function MeetingRoom() {
     <div className={styles.root}>
       <div className={styles.main}>
         <div className={styles.goalRow}>
+          <Caption1 className={styles.meta}>🛰 Mission Control</Caption1>
           <Title2 style={{ margin: 0 }}>
-            {meeting.goal || '🤖 派遣セッション (ゴール未設定)'}
+            {meeting.goal || '派遣セッション (ゴール未設定)'}
           </Title2>
-          <Caption1 className={styles.meta}>
-            モード {meeting.mode} ・ 予定 {meeting.total_minutes} 分 ・ 状態 {meeting.state}
-          </Caption1>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Caption1 className={styles.meta}>
+              モード {meeting.mode} ・ 予定 {meeting.total_minutes} 分 ・ 状態 {meeting.state}
+            </Caption1>
+            <GoalEditor meeting={meeting} organizerId={organizerId} />
+          </div>
         </div>
 
         <BotMissionCard meeting={meeting} liveUtteranceCount={liveUtteranceCount} />
