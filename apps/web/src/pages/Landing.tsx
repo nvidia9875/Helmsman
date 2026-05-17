@@ -3,7 +3,6 @@ import { Rocket24Regular } from '@fluentui/react-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
-import { Pill } from '@/components/primitives/Pill';
 import { Kpi, KpiRow } from '@/components/primitives/Kpi';
 import { Skeleton } from '@/components/primitives/Skeleton';
 import { AreaChart } from '@/components/primitives/AreaChart';
@@ -20,19 +19,9 @@ const useStyles = makeStyles({
   hero: {
     borderBottom: '1px solid var(--border-hairline)',
     padding: '32px 32px 28px',
-    display: 'grid',
-    gridTemplateColumns: '1.4fr 1fr',
-    gap: '32px',
-    alignItems: 'end',
-    '@media (max-width: 960px)': {
-      gridTemplateColumns: '1fr',
-    },
-  },
-  heroLeft: {
     display: 'flex',
     flexDirection: 'column',
     gap: '14px',
-    minWidth: 0,
   },
   eyebrow: {
     fontSize: '10px',
@@ -64,74 +53,6 @@ const useStyles = makeStyles({
     alignItems: 'center',
     flexWrap: 'wrap',
     marginTop: '4px',
-  },
-  badges: {
-    display: 'flex',
-    gap: '6px',
-    flexWrap: 'wrap',
-    marginTop: '2px',
-  },
-  heroRight: {
-    border: '1px solid var(--border-hairline)',
-    borderRadius: '10px',
-    backgroundColor: 'var(--bg-1)',
-    padding: '18px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    fontSize: '12px',
-  },
-  heroRightTitle: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    color: 'var(--text-2)',
-    fontFamily: 'var(--font-mono)',
-    fontSize: '11px',
-    letterSpacing: '0.06em',
-    textTransform: 'uppercase',
-  },
-  diff: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: '10px',
-    fontSize: '12px',
-  },
-  diffCol: {
-    border: '1px solid var(--border-hairline)',
-    borderRadius: '8px',
-    padding: '12px',
-    backgroundColor: 'var(--bg-2)',
-  },
-  diffColAccent: {
-    border: '1px solid var(--accent-soft)',
-    borderRadius: '8px',
-    padding: '12px',
-    backgroundColor: 'var(--accent-soft)',
-  },
-  diffTitle: {
-    fontSize: '10px',
-    fontWeight: 700,
-    color: 'var(--text-2)',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase',
-    margin: '0 0 8px',
-    fontFamily: 'var(--font-mono)',
-  },
-  diffList: {
-    margin: 0,
-    padding: 0,
-    listStyle: 'none',
-    color: 'var(--text-2)',
-    lineHeight: 1.6,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  diffDot: {
-    color: 'var(--text-4)',
-    fontFamily: 'var(--font-mono)',
-    marginRight: '6px',
   },
   body: {
     padding: '24px 32px 56px',
@@ -253,70 +174,25 @@ export function Landing() {
   return (
     <div className={styles.page}>
       <section className={styles.hero}>
-        <div className={styles.heroLeft}>
-          <span className={styles.eyebrow}>AI MEETING CO-PILOT · v0.1</span>
-          <h1 className={styles.headline}>
-            Teams 会議に AI 副操縦士を派遣する
-          </h1>
-          <p className={styles.lead}>
-            会議は作らない。<strong>カレンダーに既にある</strong> Teams 会議の URL を貼ると、
-            Bot が外部参加者として join し、議論を 8 並列エージェントで分析、
-            必要なら音声で介入します。
-          </p>
-          <div className={styles.ctaRow}>
-            <Button
-              appearance="primary"
-              size="large"
-              icon={<Rocket24Regular />}
-              onClick={() => navigate('/new')}
-            >
-              Bot を派遣
-            </Button>
-          </div>
-          <div className={styles.badges}>
-            <Pill kind="success">Copilot 不要</Pill>
-            <Pill kind="success">外部参加者として join</Pill>
-            <Pill kind="success">音声介入 (L3)</Pill>
-            <Pill kind="brand">MIT OSS</Pill>
-          </div>
+        <span className={styles.eyebrow}>AI MEETING CO-PILOT · v0.1</span>
+        <h1 className={styles.headline}>
+          Teams 会議に AI 副操縦士を派遣する
+        </h1>
+        <p className={styles.lead}>
+          会議は作らない。<strong>カレンダーに既にある</strong> Teams 会議の URL を貼ると、
+          Bot が外部参加者として join し、議論を 8 並列エージェントで分析、
+          必要なら音声で介入します。
+        </p>
+        <div className={styles.ctaRow}>
+          <Button
+            appearance="primary"
+            size="large"
+            icon={<Rocket24Regular />}
+            onClick={() => navigate('/new')}
+          >
+            Bot を派遣
+          </Button>
         </div>
-
-        <aside className={styles.heroRight}>
-          <div className={styles.heroRightTitle}>
-            <span>vs Microsoft Facilitator</span>
-            <a
-              className={styles.link}
-              href="https://learn.microsoft.com/ja-jp/microsoftteams/facilitator-teams"
-              target="_blank"
-              rel="noreferrer"
-              style={{ fontSize: '11px' }}
-            >
-              docs ↗
-            </a>
-          </div>
-          <div className={styles.diff}>
-            <div className={styles.diffCol}>
-              <p className={styles.diffTitle}>FACILITATOR</p>
-              <ul className={styles.diffList}>
-                <li><span className={styles.diffDot}>—</span>Copilot $30/月</li>
-                <li><span className={styles.diffDot}>—</span>テキストのみ</li>
-                <li><span className={styles.diffDot}>—</span>外部会議 NG</li>
-                <li><span className={styles.diffDot}>—</span>単一 AI</li>
-              </ul>
-            </div>
-            <div className={styles.diffColAccent}>
-              <p className={styles.diffTitle} style={{ color: 'var(--accent)' }}>
-                HELMSMAN
-              </p>
-              <ul className={styles.diffList}>
-                <li><span className={styles.diffDot}>＋</span>追加課金なし</li>
-                <li><span className={styles.diffDot}>＋</span>音声介入 L3</li>
-                <li><span className={styles.diffDot}>＋</span>外部 OK</li>
-                <li><span className={styles.diffDot}>＋</span>8 並列 agents</li>
-              </ul>
-            </div>
-          </div>
-        </aside>
       </section>
 
       <div className={styles.body}>
