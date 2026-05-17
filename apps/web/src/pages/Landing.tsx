@@ -1,4 +1,5 @@
 import {
+  Badge,
   Body1,
   Button,
   Card,
@@ -83,6 +84,58 @@ export function Landing() {
             🤖 Bot を Teams 会議に派遣
           </Button>
         </div>
+
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+            marginTop: 16,
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
+          <Badge appearance="tint" color="success">
+            ✓ Microsoft 365 Copilot ライセンス不要
+          </Badge>
+          <Badge appearance="tint" color="success">
+            ✓ 外部参加者として join
+          </Badge>
+          <Badge appearance="tint" color="success">
+            ✓ AI が音声で介入 (L3)
+          </Badge>
+          <Badge appearance="tint" color="brand">
+            MIT OSS
+          </Badge>
+        </div>
+
+        <Body1
+          style={{
+            marginTop: 16,
+            color: tokens.colorNeutralForeground3,
+            fontSize: '12px',
+            maxWidth: '640px',
+          }}
+        >
+          ※ Microsoft Teams ネイティブの{' '}
+          <a
+            href="https://learn.microsoft.com/ja-jp/microsoftteams/facilitator-teams"
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: tokens.colorBrandForeground1 }}
+          >
+            Facilitator
+          </a>{' '}
+          (Copilot エージェント) との比較は{' '}
+          <a
+            href="https://github.com/nvidia9875/Helmsman#microsoft-teams-facilitator-との違い-補完関係"
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: tokens.colorBrandForeground1 }}
+          >
+            README §Facilitator との違い
+          </a>{' '}
+          を参照。Helmsman は補完関係 — 同じ会議で同時に動作可能です。
+        </Body1>
       </div>
 
       <div className={styles.features}>
