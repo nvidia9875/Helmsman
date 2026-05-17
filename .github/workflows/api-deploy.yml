@@ -79,16 +79,33 @@ jobs:
             --role AcrPull \
             --scope "$ACR_ID" 2>/dev/null || true
 
-      - name: Build image in ACR
+      # ACR Tasks がサブスクで禁止されているケースに備えて runner で docker build
+      - name: Set up Docker Buildx
+        if: env.AZURE_CLIENT_ID != ''
+        uses: docker/setup-buildx-action@v3
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+
+      - name: Login to ACR
         if: env.AZURE_CLIENT_ID != ''
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-        run: |
-          az acr build \
-            --registry "$ACR_NAME" \
-            --image "$IMAGE_REPO:$IMAGE_TAG" \
-            --image "$IMAGE_REPO:latest" \
-            --file Dockerfile .
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build & push image (runner-side)
+        if: env.AZURE_CLIENT_ID != ''
+        uses: docker/build-push-action@v6
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_REPO }}:${{ env.IMAGE_TAG }}
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_REPO }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Update Container App image
         if: env.AZURE_CLIENT_ID != ''
