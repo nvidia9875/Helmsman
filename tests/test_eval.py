@@ -146,7 +146,7 @@ async def test_run_eval_orchestrates_and_writes_report(
 
     # レポート出力
     out_dir = tmp_path / "run-1"
-    metrics = write_report(result, out_dir)
+    write_report(result, out_dir)
 
     for filename in (
         "utterances.jsonl",
