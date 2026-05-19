@@ -229,7 +229,7 @@ const useStyles = makeStyles({
 });
 
 const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '1on1', 'Kickoff'];
-const TEAMS_URL_PATTERN = /^https:\/\/teams\.microsoft\.com\/.+meetup-join/;
+const TEAMS_URL_PATTERN = /^https:\/\/teams\.microsoft\.com\/(.+meetup-join|meet\/\d+)/;
 const DEFAULT_FACILITATOR_NAME = 'Helmsman';
 
 const PREVIEW_STEPS: { label: string; desc: string }[] = [
@@ -354,13 +354,13 @@ export function CreateMeeting() {
               <Input
                 value={teamsUrl}
                 onChange={(_, d) => setTeamsUrl(d.value)}
-                placeholder="https://teams.microsoft.com/l/meetup-join/..."
+                placeholder="https://teams.microsoft.com/meet/... または .../meetup-join/..."
                 size="large"
               />
             </Field>
             {teamsUrl && !teamsUrlValid && (
               <span className={styles.errorText}>
-                URL の形式が不正です (https://teams.microsoft.com/.../meetup-join/...)
+                URL の形式が不正です (https://teams.microsoft.com/meet/... または .../meetup-join/...)
               </span>
             )}
 

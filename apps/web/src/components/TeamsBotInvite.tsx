@@ -91,7 +91,7 @@ export function TeamsBotInvite({ meeting, organizerId }: Props) {
 
   const status = meeting.bot_status;
   const isActive = status === 'connecting' || status === 'in_call';
-  const isValidUrl = /^https:\/\/teams\.microsoft\.com\/.+meetup-join/.test(url);
+  const isValidUrl = /^https:\/\/teams\.microsoft\.com\/(.+meetup-join|meet\/\d+)/.test(url);
 
   return (
     <section className={styles.root} aria-label="Teams Bot 派遣">
@@ -112,7 +112,7 @@ export function TeamsBotInvite({ meeting, organizerId }: Props) {
             <Input
               value={url}
               onChange={(_, d) => setUrl(d.value)}
-              placeholder="https://teams.microsoft.com/l/meetup-join/..."
+              placeholder="https://teams.microsoft.com/meet/... または .../meetup-join/..."
               disabled={isActive}
             />
           </Field>
@@ -143,7 +143,7 @@ export function TeamsBotInvite({ meeting, organizerId }: Props) {
 
         {!isValidUrl && url.length > 0 && (
           <span className={styles.errorText}>
-            URL の形式が不正です (https://teams.microsoft.com/.../meetup-join/...)
+            URL の形式が不正です (https://teams.microsoft.com/meet/... または .../meetup-join/...)
           </span>
         )}
 

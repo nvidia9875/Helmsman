@@ -272,12 +272,50 @@ Helmsman bot を Teams 会議に「Helmsman 🧭 (External)」として join →
 - [x] **TB-D8** UX ピボット: 「会議を作る」UI 撤廃。Teams カレンダーの既存会議 URL を貼って 1-shot で派遣する Dispatch フローに ← 新規
 - [x] **TB-D9** Mission Control branding + `GoalEditor` Dialog (派遣後にゴール後付け可能)、Backend `POST /meetings/{id}/set-goal` ← 新規
 
-**Phase E: User 側準備 + Smoke test (5/19 以降)**
-- [-] **TB-E1** USER: 5/19 月 Teams Essentials trial 契約 (5/17 夜 sign-up 済、Microsoft 審査 ~2 営業日 pending)
-- [ ] **TB-E2** Teams 会議を作って実 URL で派遣 smoke test
+**Phase E: M365 テナント準備 + Bot 登録 (2026-05-19 進行中)**
+
+⚠️ 経緯:
+- 5/17 USER: Microsoft 365 Developer Program に申請 → Welcome メール届く (2026-05-19 確認)
+- 5/19 USER: dashboard で「E5 not qualified」表示、E5 サンドボックスは付与されず断念
+- 5/19 USER: M365 Business Standard trial チェックアウト画面まで進んだが、**最終「サブスクリプションを開始」を押さず購入未完了** (Graph `/subscribedSkus` 空 + 注文確認メール無しで確認)
+- 結果: Dev Program のサインアップで作られたテナント `helmsmanjp.onmicrosoft.com` + admin アカウントだけが残り、M365 ライセンスはゼロ
+- 副産物: Azure PAYG サブスクは helmsmanjp に自動作成された (現状リソース無しで¥0)
+
+- [x] **TB-E1a** テナント + admin 作成完了 (Dev Program 経由)
+  - テナント: `helmsmanjp.onmicrosoft.com` (ID: `bec25760-f44c-4ce5-9e1e-27b7f7080d10`、作成 2026-05-17 08:51 UTC)
+  - Admin: `admin@helmsmanjp.onmicrosoft.com` (オブジェクトID `bf50a0d7-2b4d-4e09-9812-583018d49a0e`)
+  - 組織表示名: 株式会社クイック (そのまま運用)
+  - Entra プラン: Free のみ、M365 ライセンス無し
+- [x] **TB-E1z** Teams ライセンス取得方針: 試行錯誤の末 Teams Essentials 試用版に決定
+  - (失敗) 5/19 M365 Business Standard チェックアウト → 最終確定押さず未契約
+  - (失敗) 5/19 M365 Business Basic (no Teams) 誤購入 → 即キャンセル、Suspended 確認、最終請求書 ~30日以内
+  - (棄却) 個人 Outlook の Teams Free → ACS 公式に非対応 (`join-teams-meeting` ドキュメント明記)
+  - (確定) 5/19 **Microsoft Teams Essentials 試用版** → admin@helmsmanjp に SKU `TEAMS_ESSENTIALS_AAD` 割当、TEAMS1/MCOIMP/EXCHANGE_S_DESKLESS など Success
+  - 継続請求 OFF 実行済、7/19 自然失効で ¥0 終了予定
+- [x] **TB-E1b** Azure CLI を helmsmanjp テナントに切替 (`az login --tenant bec25760-...`)
+  - 発見: helmsmanjp 配下に Azure PAYG サブスクが自動作成済 (`49999bd3-fee5-482a-950e-45f843421cee`, spendingLimit=Off)
+- [x] **TB-E1c** Budget アラート `helmsman-monthly-3000` を ¥3,000/月で設定 (50%/80%/予測100%、`admin@helmsmanjp` + `s.shunsuke9875@outlook.jp` 宛)
+- [x] **TB-E1d** Entra ID で Bot アプリ登録: `helmsman-bot`
+  - App ID: `ef2737f1-37bf-4392-a108-70f53f585b6d`
+  - SP Object ID: `6506bedd-3d40-4776-9337-f85368a96b5a`
+  - Sign-in audience: AzureADMyOrg (single-tenant)
+  - Client secret: 発行済 (有効期限 2027-05-19、`MICROSOFT_APP_PASSWORD` として .env に格納)
+- [x] **TB-E1e** Graph API アプリ権限 5 つを admin consent 付きで付与
+  - `Calls.JoinGroupCall.All`
+  - `Calls.AccessMedia.All`
+  - `OnlineMeetings.Read.All`
+  - `OnlineMeetingArtifact.Read.All`
+  - `User.Read.All`
+- [x] **TB-E1f** Resource Group `rg-helmsman-teams` (japaneast) + Azure Bot Service (F0 無料 tier, global) 作成
+  - Teams チャネル (`MsTeamsChannel`) 有効化済 (`enableCalling: false`、Phase C で要見直し)
+- [ ] **TB-E2** Teams 会議を作って実 URL で派遣 smoke test (TB-E1z 解決後)
 - [ ] **TB-E3** STT 認識精度の手動評価 (日本語 30 分会議で何 % 拾えるか)
 - [ ] **TB-E4** L3 TTS の声質 / レイテンシ評価
-- [ ] **TB-E5** USER: 6/17 までに trial 解約 (¥7,188 自動課金回避)
+- [ ] **TB-E5** 🔴 **USER: ハッカソン終了後 (~2026-06-18) の後片付け**
+  - (1) もし TB-E1z で有料 M365 を契約していれば: https://admin.microsoft.com → 課金 → 定期請求 OFF (公式手順)
+  - (2) `az group delete --name rg-helmsman-teams --yes --no-wait --subscription 49999bd3-fee5-482a-950e-45f843421cee` (Azure リソース全削除)
+  - (3) (optional) helmsmanjp Azure サブスク自体も解約 (Azure Portal → コスト管理)
+  - リマインダー必要なら: TB-E1z で M365 契約した場合のみ、trial 終了 1 日前の 21:00 JST にアラーム
 
 ### 8.5.G ポジショニング (Microsoft Teams Facilitator との差別化) 🌟 新規 (2026-05-17 着手)
 
@@ -520,8 +558,12 @@ Day 16  (提出):                          0  /  5   未着手
 Total: ~134 / ~158 完了 (~85%)
 ```
 
-**残タスク (5/19〜)**:
-- TB-E1〜E5: Teams Essentials trial 待ち → smoke test (TB-E2/3/4) → trial 解約 (E5)
+**残タスク (5/19 夜時点〜)**:
+- ✅ TB-E1z 解決済: Teams Essentials trial で admin@helmsmanjp に Teams ライセンス確保
+- 次: Lobby ポリシー設定 (anonymous bot を即 admit にするか手動 admit する設計) + Container App の .env に MICROSOFT_APP_ID/PASSWORD 反映
+- TB-E2 (Teams 会議 smoke test): admin@helmsmanjp で会議作成 → Helmsman UI から bot 招待 → ACS が anonymous external として join できるか確認
+- TB-E3 (STT 精度評価), TB-E4 (TTS 評価)
+- TB-E5: ハッカソン終了後の `rg-helmsman-teams` 削除 (Bot Service F0 は無料なので必須ではない)。Teams Essentials trial は 7/19 自然失効、能動的解約不要
 - TB-C4 (Barge-in) / TB-C5 (L2→L3 UI 昇格ボタン): smoke test 後の調整
 - F-4/F-5 (Day 13): ソロ評価実験 (Helmsman ON/OFF 比較 + GAR/介入受容率記録)
 - B-3 (Day 8.5.D): デモ動画にビフォアアフター数値を埋め込む (F-4/F-5 の結果を使う)
