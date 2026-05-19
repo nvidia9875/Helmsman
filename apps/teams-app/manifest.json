@@ -1,8 +1,8 @@
 {
   "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
   "manifestVersion": "1.17",
-  "version": "0.1.0",
-  "id": "00000000-0000-0000-0000-000000000000",
+  "version": "0.2.0",
+  "id": "ef2737f1-37bf-4392-a108-70f53f585b6d",
   "packageName": "com.helmsman.app",
   "developer": {
     "name": "Helmsman",
@@ -23,12 +23,43 @@
     "full": "Helmsman は Teams 会議に Bot として参加し、論点を分解し、時間を管理し、議論の脱線を戻し、押し殺された反対意見を浮かび上がらせ、決定を構造化する AI 副操縦士です。会議のホストはダッシュボードから派遣を制御し、リアルタイムで介入提案を確認できます。"
   },
   "accentColor": "#0078D4",
+  "bots": [
+    {
+      "botId": "ef2737f1-37bf-4392-a108-70f53f585b6d",
+      "scopes": ["personal", "team", "groupChat"],
+      "supportsFiles": false,
+      "isNotificationOnly": false,
+      "supportsCalling": true,
+      "supportsVideo": false,
+      "commandLists": [
+        {
+          "scopes": ["personal", "team", "groupChat"],
+          "commands": [
+            {
+              "title": "派遣",
+              "description": "この会議に Helmsman を派遣する"
+            },
+            {
+              "title": "退出",
+              "description": "Helmsman を会議から退出させる"
+            }
+          ]
+        }
+      ]
+    }
+  ],
   "configurableTabs": [
     {
       "configurationUrl": "https://kind-glacier-0122f6400.7.azurestaticapps.net/teams-config",
       "canUpdateConfiguration": true,
       "scopes": ["team", "groupChat"],
-      "context": ["channelTab"]
+      "context": [
+        "channelTab",
+        "meetingChatTab",
+        "meetingDetailsTab",
+        "meetingSidePanel",
+        "meetingStage"
+      ]
     }
   ],
   "staticTabs": [
@@ -41,8 +72,27 @@
     }
   ],
   "permissions": ["identity", "messageTeamMembers"],
+  "devicePermissions": ["media"],
   "validDomains": [
     "kind-glacier-0122f6400.7.azurestaticapps.net",
     "helmsman-dev-api.ashyocean-e634ae12.westus2.azurecontainerapps.io"
-  ]
+  ],
+  "webApplicationInfo": {
+    "id": "ef2737f1-37bf-4392-a108-70f53f585b6d",
+    "resource": "api://kind-glacier-0122f6400.7.azurestaticapps.net/ef2737f1-37bf-4392-a108-70f53f585b6d"
+  },
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "OnlineMeetingIncomingAudio.Detect.Chat",
+          "type": "Application"
+        },
+        {
+          "name": "OnlineMeetingParticipant.Read.Chat",
+          "type": "Application"
+        }
+      ]
+    }
+  }
 }

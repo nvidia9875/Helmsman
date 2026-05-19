@@ -233,7 +233,20 @@ Bicep で一気にデプロイ。
 - [x] **COST-6** ユニットテスト 5 件 (`tests/test_usage.py`)
 - [x] **COST-7** ランディング 30 日コストサマリーカード (累計 / 平均 / 日別スパーク bar、`GET /meetings/usage/summary`)
 
-### 8.5.F Teams Bot (ACS Call Automation + Speech SDK) 🌟 新規 (2026-05-17 着手)
+### 8.5.F Teams Bot ⚠️ ACS アプローチ廃止 (2026-05-20 判明) — 新方針は 8.5.M/N
+
+> 🚨 **2026-05-20 重大事実判明**: 既存実装 (Phase A〜D) が依拠していた `TeamsMeetingLinkLocator` クラスは **ACS Call Automation の REST API spec / Python SDK / C# SDK / JS SDK のどこにも存在しない**ことを公式リポ + Microsoft Learn で確認。前 Claude セッションのハルシネーション。本番 Container App では `ImportError: cannot import name 'TeamsMeetingLinkLocator'` で派遣不能。
+>
+> 公式 Microsoft 公式制約:
+> - **Application-hosted media bot** (生音声リアルタイム取得) = **Windows + C#/.NET 専用**
+> - **Service-hosted media bot** (PlayPrompt / Record のみ) = 任意言語 (Python OK)
+> - 詳細: https://learn.microsoft.com/en-us/microsoftteams/platform/bots/calls-and-meetings/calls-meetings-bots-overview
+>
+> 新方針 (2026-05-20 決定):
+> 1. **8.5.M (本命)**: Service-hosted Graph bot を Python で実装 — 公式パス、Python のみ、5-10s 遅延の準リアルタイム
+> 2. **8.5.N (フォールバック兼補完)**: Teams Tab + Web PWA — Web Speech API で生音声、Tab UI で Teams 内同居
+>
+> Phase A〜D の既存実装は流用可能な部分のみ残す (UI コンポーネント、Azure Speech 関連、TTS、tick pipeline、Cosmos 永続化など)。teams_bot.py の ACS 接続部分のみ書き換え。
 
 ハッカソンの差別化キラー機能、かつ Microsoft Agent Hackathon の本命提出。
 Helmsman bot を Teams 会議に「Helmsman 🧭 (External)」として join → 音声取得 → 8 agents → TTS で介入。
@@ -316,6 +329,116 @@ Helmsman bot を Teams 会議に「Helmsman 🧭 (External)」として join →
   - (2) `az group delete --name rg-helmsman-teams --yes --no-wait --subscription 49999bd3-fee5-482a-950e-45f843421cee` (Azure リソース全削除)
   - (3) (optional) helmsmanjp Azure サブスク自体も解約 (Azure Portal → コスト管理)
   - リマインダー必要なら: TB-E1z で M365 契約した場合のみ、trial 終了 1 日前の 21:00 JST にアラーム
+
+### 8.5.M 🆕 本命: Service-hosted Graph Calling Bot (Python) 🌟 (2026-05-20 着手)
+
+ACS Call Automation の Teams meeting join 機能が公式に存在しないため、**Microsoft Graph Communications API ベース**に全面切り替え。Service-hosted media bot として動作 (Python のみ、Windows 不要)。`Record` API で短時間 chunk 録音 → Azure Speech で STT → 既存 8 agents pipeline → `PlayPrompt` で TTS 介入発話。
+
+**アーキテクチャ**:
+```
+Teams Meeting (helmsmanjp)
+  ↑↓ webhooks + REST
+Microsoft Graph /communications/calls
+  ↑↓ HTTP/HTTPS
+Python Container App (helmsman-dev-api)
+  ├── services/graph_calling.py (新規) — Graph API client
+  ├── services/recording_loop.py (新規) — 5s chunk 制御
+  ├── services/teams_bot.py (改修) — invite/leave エントリ
+  ├── api/routers/bot.py (改修) — /graph-call/callback webhook
+  ├── services/tts.py (流用) — TTS 生成
+  └── services/call_tick.py (流用) — agent pipeline
+```
+
+**主要トレードオフ**:
+- ✅ Python のまま、既存資産 (8 agents, Cosmos, Azure Speech) 全部流用
+- ✅ Microsoft 公式パス、長期的に安定
+- ✅ 追加コスト無し (Container App 流用)
+- ⚠️ **5-10 秒遅延** (chunk 録音 → DL → STT) ← 真のリアルタイムではない
+- ⚠️ Application Access Policy 設定に **PowerShell 必須** (1 回だけ)
+
+**Phase M.A: Foundations (Day 1: 5/20)**
+- [ ] **TB-M.A1** Graph API アプリ権限 `OnlineMeetings.ReadWrite.All` (Application) を bot app に追加 + admin consent
+- [ ] **TB-M.A2** `Calls.Initiate.All` も追加 (peer-to-peer 開始用、後で必要なら)
+- [ ] **TB-M.A3** PowerShell インストール (`brew install --cask powershell`)
+- [ ] **TB-M.A4** Microsoft Teams PowerShell module インストール
+- [ ] **TB-M.A5** Application Access Policy 作成 → admin@helmsmanjp に grant (bot がこのユーザー context で meetings を作成/操作できるようにする)
+- [ ] **TB-M.A6** Teams app manifest 更新: `supportsCalling: true`, `supportsVideo: false`, `webApplicationInfo.id` を bot App ID に
+- [ ] **TB-M.A7** Bot Service の messaging endpoint 確認 (Graph callbacks 用、Container App URL を指す)
+
+**Phase M.B: Graph API で Teams 会議 join (Day 2: 5/21)**
+- [ ] **TB-M.B1** `services/graph_calling.py` 新規実装
+  - `_get_meeting_coords(teams_url)` — Graph `/me/onlineMeetings?$filter=joinWebUrl eq '...'` で `joinMeetingIdSettings` 取得 (`/meet/` 新形式 URL 対応必要)
+  - `join_meeting(coords)` — POST `/communications/calls` with `joinMeetingIdSettings` + bot app credentials (Bot Framework token を取得して Bearer 認証)
+  - 返却: `callId` (Microsoft 側の call識別子)
+- [ ] **TB-M.B2** Bot Framework access token 取得関数 (client_credentials grant)
+- [ ] **TB-M.B3** `POST /graph-call/callback` webhook handler 実装
+  - Subscription validation handshake 対応
+  - `CallEstablished`, `ParticipantJoined`, `CallDisconnected` イベント処理 → Cosmos の Meeting state 更新
+- [ ] **TB-M.B4** 既存 `services/teams_bot.py` の `invite_bot_to_teams_meeting()` を Graph 呼び出しに書き換え (ACS SDK インポート削除)
+- [ ] **TB-M.B5** ローカル smoke test: bot が会議に join できる (音声無し)
+
+**Phase M.C: 録音 → STT ループ (Day 3-4: 5/22-5/23)**
+- [ ] **TB-M.C1** `services/recording_loop.py` 新規実装
+  - 5 秒ごとに `POST /communications/calls/{callId}/recordResponse` で短時間録音開始
+  - イベント `RecordingStatusUpdated` で完了検知 → recording URL 取得
+  - WAV ダウンロード (Bot Framework token で認証)
+- [ ] **TB-M.C2** Azure Speech SDK で WAV ファイル → 文字起こし
+  - 既存 `services/realtime_transcription.py` の Speech SDK 設定を流用、batch モードに
+- [ ] **TB-M.C3** 既存 `services/call_buffer.py` の代替: chunk 結果を `services/call_tick.py` に流す薄いブリッジ
+- [ ] **TB-M.C4** 連続録音の overlap 処理 (chunk 境界での音声欠落最小化)
+- [ ] **TB-M.C5** エラーハンドリング: 録音失敗時の retry, throttle
+
+**Phase M.D: TTS 介入発話 (Day 5: 5/24)**
+- [ ] **TB-M.D1** 既存 `services/tts.py` を流用、WAV 生成 (`ja-JP-NanamiNeural`, Raw16Khz16BitMonoPcm)
+- [ ] **TB-M.D2** Azure Blob Storage にアップロード → SAS URL 発行 (既存 `AZURE_STORAGE_CONNECTION_STRING` を活用)
+- [ ] **TB-M.D3** Graph API `POST /communications/calls/{callId}/playPrompt` with SAS URL
+- [ ] **TB-M.D4** Arbiter の L3 選択時に発火 (call_tick.py の TTS フック書き換え)
+- [ ] **TB-M.D5** `RemoveAfterPlay` 等のオプションで自動クリーンアップ
+
+**Phase M.E: 統合 + フロント + smoke test (Day 5-6: 5/24-5/25)**
+- [ ] **TB-M.E1** `apps/web/src/components/TeamsBotInvite.tsx` の API エンドポイントを新 Graph 経路に向け直し (既存 `/meetings/{id}/bot/invite` が Graph 呼び出しに変わるだけ、フロント変更最小)
+- [ ] **TB-M.E2** Bot status の polling キー追加 (Graph webhook の状態)
+- [ ] **TB-M.E3** E2E smoke test: admin@helmsmanjp が会議作成 → Helmsman UI で派遣 → bot 入室 → 発話して transcript 出る → L3 選択時に bot 発話
+- [ ] **TB-M.E4** バグ修正イテレーション
+
+**Phase M.F: 後始末 (Day 6 末)**
+- [ ] **TB-M.F1** 旧 ACS 関連コード削除: `from azure.communication.callautomation import TeamsMeetingLinkLocator` 周辺、`ACS_CONNECTION_STRING` 等の env vars 整理
+- [ ] **TB-M.F2** pyproject.toml から `azure-communication-callautomation` 削除 (bundle サイズ削減)
+- [ ] **TB-M.F3** ACS resource (rg-helmsman-dev 側) は使用してないので、別途削除しても良い (節約)
+
+---
+
+### 8.5.N 🆕 フォールバック兼補完: Teams Tab + Web PWA 🌟 (2026-05-26 着手予定)
+
+8.5.M で 5-10 秒遅延が許容できない場合、または並行アピール材料として実装。Helmsman を Teams 会議内の Tab として埋め込み、ブラウザ側で **Web Speech API** で音声キャプチャ (真のリアルタイム)。
+
+**主要トレードオフ**:
+- ✅ 完全リアルタイム (Web Speech API は <1 秒)
+- ✅ Microsoft 公式 Teams Tab SDK パス
+- ✅ サーバー側でメディア処理しないのでスケール容易
+- ⚠️ 参加者全員が Teams Tab を開く必要 (ホスト 1 人で十分という設計も可能)
+- ⚠️ Web Speech API は Chrome/Edge のみ完全対応
+
+**Phase N.A: Web Speech 復活 (Day 7: 5/26)**
+- [ ] **TB-N.A1** Git 履歴掘り起こし: 5/17 Teams Bot ピボット前の Web Speech 実装を `git log -p` で復元候補抽出
+- [ ] **TB-N.A2** `apps/web/src/lib/useWebSpeech.ts` (or 既存 hook) を新規/復活
+- [ ] **TB-N.A3** MeetingRoom UI に「ブラウザでマイクをキャプチャ」モード追加 (既存 bot モードと併存)
+- [ ] **TB-N.A4** Web Speech 結果を既存 `POST /meetings/{id}/tick` に流す経路接続
+
+**Phase N.B: Teams Tab manifest (Day 7-8: 5/26-5/27)**
+- [ ] **TB-N.B1** `apps/teams-app/manifest.json` を更新: `configurableTabs` に Helmsman Web URL を設定 (会議内 Tab)
+- [ ] **TB-N.B2** `validDomains` に `kind-glacier-0122f6400.7.azurestaticapps.net` 追加
+- [ ] **TB-N.B3** Teams JavaScript SDK (`@microsoft/teams-js`) を Helmsman Web に組み込み — Tab context 取得 (meeting ID, user ID 等)
+- [ ] **TB-N.B4** Tab 検出時の UI 切替: Tab 内表示なら chrome 簡略化、外部表示なら通常 UI
+
+**Phase N.C: Sideload + E2E test (Day 8: 5/27)**
+- [ ] **TB-N.C1** Teams 管理センターで sideloading 有効化 (旧 #6 タスク復活)
+- [ ] **TB-N.C2** Helmsman manifest を Teams app パッケージ化 (manifest.json + icons → zip)
+- [ ] **TB-N.C3** admin.teams.microsoft.com でカスタムアプリアップロード
+- [ ] **TB-N.C4** 実 Teams 会議に Tab として追加 → Web Speech 動作確認 → tick fires
+- [ ] **TB-N.C5** デモ用に「Tab 経由 + bot 経由」両方を併存させた最終 UI 確認
+
+---
 
 ### 8.5.G ポジショニング (Microsoft Teams Facilitator との差別化) 🌟 新規 (2026-05-17 着手)
 
@@ -558,16 +681,42 @@ Day 16  (提出):                          0  /  5   未着手
 Total: ~134 / ~158 完了 (~85%)
 ```
 
-**残タスク (5/19 夜時点〜)**:
+**残タスク (2026-05-20 朝〜、提出 6/1)**:
+
+🚨 **大幅プラン変更** (5/20): ACS 不可と判明 → 8.5.M (Service-hosted Graph bot) + 8.5.N (Teams Tab + Web PWA) で再実装
+
+13 日タイムライン:
+
+| Day | Date | 内容 |
+|---|---|---|
+| 1 | 5/20 (火) | 8.5.M.A: Graph 権限追加 + PowerShell + Application Access Policy + Teams app manifest 更新 |
+| 2 | 5/21 (水) | 8.5.M.B: graph_calling.py 実装 + webhook handler + 接続 smoke test |
+| 3 | 5/22 (木) | 8.5.M.C 前半: recording_loop.py + Azure Speech STT 統合 |
+| 4 | 5/23 (金) | 8.5.M.C 後半: 連続録音処理 + エラー耐性 |
+| 5 | 5/24 (土) | 8.5.M.D (TTS PlayPrompt) + 8.5.M.E 前半 (フロント統合) |
+| 6 | 5/25 (日) | 8.5.M.E 後半 (E2E test + デバッグ) + 8.5.M.F (ACS コード片付け) |
+| 7 | 5/26 (月) | 8.5.N.A (Web Speech 復活) + 8.5.N.B 着手 |
+| 8 | 5/27 (火) | 8.5.N.B 完成 + 8.5.N.C (sideload + E2E test) |
+| 9 | 5/28 (水) | 統合磨き込み (TB-C4 Barge-in 含む)、F-4/F-5 ソロ評価実験 |
+| 10 | 5/29 (木) | Day 14 内容前倒し: B-3 デモ動画ビフォアアフター数値 |
+| 11 | 5/30 (金) | Day 14 続: デモ動画撮影 (8.5.M + 8.5.N 両方見せる) |
+| 12 | 5/31 (土) | Zenn 記事完成 + 最終 QA |
+| 13 | 6/1 (月) | 🚀 提出 |
+
+審査期間: 6/2-6/18、最終審査 6/18。Teams Essentials trial が 6/18 まで延長済なので余裕あり。
+
+**残タスク詳細**:
 - ✅ TB-E1z 解決済: Teams Essentials trial で admin@helmsmanjp に Teams ライセンス確保
-- 次: Lobby ポリシー設定 (anonymous bot を即 admit にするか手動 admit する設計) + Container App の .env に MICROSOFT_APP_ID/PASSWORD 反映
-- TB-E2 (Teams 会議 smoke test): admin@helmsmanjp で会議作成 → Helmsman UI から bot 招待 → ACS が anonymous external として join できるか確認
-- TB-E3 (STT 精度評価), TB-E4 (TTS 評価)
-- TB-E5: ハッカソン終了後の `rg-helmsman-teams` 削除 (Bot Service F0 は無料なので必須ではない)。Teams Essentials trial は 7/19 自然失効、能動的解約不要
-- TB-C4 (Barge-in) / TB-C5 (L2→L3 UI 昇格ボタン): smoke test 後の調整
-- F-4/F-5 (Day 13): ソロ評価実験 (Helmsman ON/OFF 比較 + GAR/介入受容率記録)
-- B-3 (Day 8.5.D): デモ動画にビフォアアフター数値を埋め込む (F-4/F-5 の結果を使う)
-- Day 14-16: デモ撮影 + Zenn 記事 + 提出
+- 🔴 **TB-M.A1〜M.F3**: 8.5.M 本命実装 (Day 1-6)
+- 🟡 **TB-N.A1〜N.C5**: 8.5.N フォールバック実装 (Day 7-8)
+- ✅ TB-E2 旧仕様 (ACS smoke test) は廃止 → TB-M.E3 (Graph 経由 smoke test) で代替
+- TB-E3 (STT 精度評価), TB-E4 (TTS 評価): 8.5.M.E E2E test 内で実施
+- TB-E5: ハッカソン終了後の cleanup (`rg-helmsman-teams` 削除、Teams Essentials trial 自然失効)
+- TB-C4 (Barge-in): 8.5.M では Graph PlayPrompt 単発再生なので原理的に barge-in 不要、削除予定
+- TB-C5 (L2→L3 UI 昇格ボタン): UI 側は既存実装で済む (API endpoint だけ Graph 化)
+- F-4/F-5 (Day 13 旧予定): Day 9 に前倒し
+- B-3 (Day 8.5.D): Day 10 に前倒し
+- Day 14-16 (旧): Day 10-13 に圧縮
 
 **今すぐ着手可能な未着手 (外部ブロッカーなし)**:
 - F-4/F-5: 録音済み会議音声があれば即評価可能
