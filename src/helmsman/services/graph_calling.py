@@ -50,6 +50,28 @@ class _TokenCache:
 _bot_token = _TokenCache()
 _graph_token = _TokenCache()
 
+# call_id → (meeting_id, organizer_id) のプロセスローカルマップ。
+# Graph webhook で operationContext が echo back されない場合、call_id でこちらを引く。
+# Container App の minReplicas=1 + 短時間 call なら process-local で十分。
+# 永続化が必要なら Cosmos に column 足して find_by_call_id() を追加する。
+_call_registry: dict[str, tuple[str, str]] = {}
+
+
+def register_call(call_id: str, meeting_id: str, organizer_id: str) -> None:
+    _call_registry[call_id] = (meeting_id, organizer_id)
+
+
+def lookup_call(call_id: str) -> tuple[str | None, str | None]:
+    """call_id から (meeting_id, organizer_id) を返す。未登録なら (None, None)。"""
+    pair = _call_registry.get(call_id)
+    if pair:
+        return pair
+    return None, None
+
+
+def unregister_call(call_id: str) -> None:
+    _call_registry.pop(call_id, None)
+
 
 def is_configured() -> bool:
     s = get_settings()
@@ -279,6 +301,8 @@ async def join_meeting_via_graph(
             resp.raise_for_status()
         data = resp.json()
         call_id = data["id"]
+        # webhook で operationContext が落ちることがあるので、call_id ↔ meeting マップに登録
+        register_call(call_id, meeting_id, organizer_id)
         logger.info(
             "graph.call_created",
             call_id=call_id,

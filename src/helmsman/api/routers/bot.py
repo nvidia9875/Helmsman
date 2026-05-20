@@ -479,22 +479,45 @@ async def graph_calling_callback(
     ハッカソン期間は public endpoint として運用 (rate limit のみ Container App 側で制御)。
     """
     payload = await request.json()
-    notifications = payload.get("value") if isinstance(payload, dict) else []
+
+    # payload は dict or list で来うる (Graph 仕様の揺れ)。両対応。
+    if isinstance(payload, dict):
+        notifications = payload.get("value") or []
+    elif isinstance(payload, list):
+        notifications = payload
+    else:
+        notifications = []
     if not isinstance(notifications, list):
         notifications = []
 
     handled = 0
     for notif in notifications:
-        change_type = notif.get("changeType", "")
-        resource_url = notif.get("resourceUrl", "")
-        resource_data = notif.get("resourceData") or {}
+        # notif 自体が dict 以外の可能性に対する防御
+        if not isinstance(notif, dict):
+            continue
 
-        # operationContext は call の作成時に設定したもの。state 変更通知に含まれる。
+        change_type = notif.get("changeType", "")
+        resource_url = notif.get("resourceUrl") or notif.get("resource") or ""
+        resource_data = notif.get("resourceData") or {}
+        if not isinstance(resource_data, dict):
+            resource_data = {}
+
+        # operationContext は call の作成時に設定したもの。
+        # ただし Microsoft は state 変更通知で echo back しないケースあり → call_id で fallback。
         op_ctx = resource_data.get("operationContext") or notif.get("operationContext")
         meeting_id, organizer_id = parse_operation_context(op_ctx)
 
         call_state = resource_data.get("state", "")
-        call_id = resource_data.get("id") or resource_url.rsplit("/", 1)[-1]
+        call_id = resource_data.get("id") or (
+            resource_url.rsplit("/", 1)[-1] if isinstance(resource_url, str) else ""
+        )
+
+        # fallback: registry から call_id で meeting を引く
+        if not (meeting_id and organizer_id) and call_id:
+            from helmsman.services.graph_calling import lookup_call
+            fb_meeting_id, fb_organizer_id = lookup_call(call_id)
+            if fb_meeting_id and fb_organizer_id:
+                meeting_id, organizer_id = fb_meeting_id, fb_organizer_id
 
         logger.info(
             "graph.event",
@@ -507,7 +530,7 @@ async def graph_calling_callback(
         )
 
         if not (meeting_id and organizer_id):
-            # operationContext が無いイベント (participantUpdate 等) はスキップ
+            # operationContext も registry も無い event はスキップ
             continue
 
         meeting = await repo.get(meeting_id, organizer_id)
@@ -534,6 +557,11 @@ async def graph_calling_callback(
         if change_type == "deleted":
             meeting.bot_status = "disconnected"
             meeting.bot_call_connection_id = None
+
+        # disconnected になったら call registry からも削除
+        if meeting.bot_status == "disconnected" and call_id:
+            from helmsman.services.graph_calling import unregister_call
+            unregister_call(call_id)
 
         await repo.upsert(meeting)
         handled += 1
