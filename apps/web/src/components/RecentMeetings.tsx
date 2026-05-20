@@ -158,8 +158,8 @@ function deriveStatus(m: Meeting): { kind: StatusKind; label: string } {
   // ここから state === 'in_progress'
   if (m.bot_status === 'in_call') return { kind: 'active', label: 'LIVE' };
   if (m.bot_status === 'connecting') return { kind: 'warning', label: 'JOINING' };
-  // bot が退出済 / 未派遣 → 終わってる扱いで red
-  if (m.bot_status === 'disconnected') return { kind: 'danger', label: 'ENDED' };
+  // bot が退出済 → 終わってる扱い (灰色、エラーではないので danger は避ける)
+  if (m.bot_status === 'disconnected') return { kind: 'neutral', label: 'ENDED' };
   if (m.bot_status === 'idle') return { kind: 'neutral', label: 'IDLE' };
 
   return { kind: 'neutral', label: m.state.toUpperCase() };
