@@ -129,9 +129,10 @@ async def transcribe_and_dispatch(
         organizer_id=organizer_id,
     )
     now = datetime.now(UTC)
+    # Graph では participant 識別は未実装、参加者まとめて "participant" にする
     utterance = Utterance(
         meeting_id=meeting_id,
-        speaker_id="participant",  # Graph では participant 識別は未実装、参加者まとめて "participant"
+        speaker_id="participant",
         text=text,
         started_at=now,
         ended_at=now,
