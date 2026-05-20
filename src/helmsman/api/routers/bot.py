@@ -140,19 +140,26 @@ async def speak_into_meeting(
 
     registry = get_call_registry()
     session = await registry.lookup_by_meeting(meeting_id)
-    if not session or session.media_ws is None:
+    if not session:
         raise HTTPException(
             409,
             "bot is not in a call right now — invite the bot to a Teams meeting first",
         )
 
-    from helmsman.services.tts import speak_into_call
-
-    asyncio.create_task(speak_into_call(session.media_ws, req.text))
+    # ACS / Graph いずれの経路でも対応
+    if session.media_ws is not None:
+        from helmsman.services.tts import speak_into_call
+        asyncio.create_task(speak_into_call(session.media_ws, req.text))
+    else:
+        from helmsman.services.graph_play_prompt import play_text_in_graph_call
+        asyncio.create_task(
+            play_text_in_graph_call(session.call_connection_id, req.text)
+        )
     logger.info(
         "bot.manual_speak",
         meeting_id=meeting_id,
         text=req.text[:80],
+        path="ws" if session.media_ws is not None else "graph",
     )
     return SpeakResponse(accepted=True, detail="TTS playback queued")
 

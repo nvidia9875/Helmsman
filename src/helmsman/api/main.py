@@ -128,7 +128,7 @@ _SILENT_WAV_BYTES = _build_silent_wav(duration_ms=100)
 
 @app.get("/static/silent.wav")
 async def silent_wav() -> Any:
-    """Microsoft Graph recordResponse prompts 用の silent WAV (16kHz/16bit/mono, 500ms)。
+    """Microsoft Graph recordResponse prompts 用の silent WAV (16kHz/16bit/mono, 100ms)。
 
     Service-hosted bot で audio capture するために prompts 配列に 1 件以上必須。
     silent prompt で実質無音から録音開始する。
@@ -136,3 +136,20 @@ async def silent_wav() -> Any:
     from fastapi import Response
 
     return Response(content=_SILENT_WAV_BYTES, media_type="audio/wav")
+
+
+@app.get("/static/tts/{key}.wav")
+async def tts_wav(key: str) -> Any:
+    """Microsoft Graph playPrompt 用の動的 TTS WAV。
+
+    `services/graph_play_prompt.py` が in-memory cache に WAV を登録する。
+    Microsoft が GET でフェッチ → 会議で再生。
+    """
+    from fastapi import HTTPException, Response
+
+    from helmsman.services.graph_play_prompt import get_cached_tts
+
+    wav = get_cached_tts(key)
+    if wav is None:
+        raise HTTPException(status_code=404, detail="tts not found")
+    return Response(content=wav, media_type="audio/wav")

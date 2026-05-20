@@ -159,10 +159,8 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         delivery_level=delivery.level if delivery else None,
     )
 
-    # Phase C: L3 (音声介入) → bidirectional WS で TTS playback
-    if delivery and delivery.level == "L3" and session.media_ws is not None:
-        from helmsman.services.tts import speak_into_call
-
+    # Phase C / M.D: L3 (音声介入) → 会議内 TTS 再生
+    if delivery and delivery.level == "L3":
         text = _build_l3_utterance(delivery.content, delivery.reason)
         logger.info(
             "call.l3_speak",
@@ -170,8 +168,17 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
             text=text[:80],
             agent=delivery.agent,
         )
-        # blocking しない (再生中も次の tick を回せるように)
-        asyncio.create_task(speak_into_call(session.media_ws, text))
+        # 2 つの経路を session の状態で判別:
+        # - media_ws あり (旧 ACS bidirectional WebSocket) → 旧パス
+        # - media_ws なし (Graph Calling service-hosted) → playPrompt API
+        if session.media_ws is not None:
+            from helmsman.services.tts import speak_into_call
+            asyncio.create_task(speak_into_call(session.media_ws, text))
+        else:
+            from helmsman.services.graph_play_prompt import play_text_in_graph_call
+            asyncio.create_task(
+                play_text_in_graph_call(session.call_connection_id, text)
+            )
 
 
 def _build_l3_utterance(content: str, reason: str | None) -> str:
