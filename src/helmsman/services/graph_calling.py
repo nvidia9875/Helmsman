@@ -220,8 +220,10 @@ async def join_meeting_via_graph(
     if not chat_info or not chat_info.get("threadId"):
         raise RuntimeError("Meeting lacks chatInfo.threadId (cannot join via Graph)")
 
-    # 2. Bot Framework JWT を取得 (Graph token とは別物)
-    bot_token = await get_bot_token()
+    # 2. Graph token を取得 (roles に Calls.* permissions が入ったやつ)
+    # NOTE: Bot Framework JWT は audience=api.botframework.com で roles=[] のため
+    # /communications/calls には使えない。Graph token (audience=graph.microsoft.com) が正解。
+    graph_token = await get_graph_token()
 
     # 3. POST /communications/calls
     operation_context = _build_operation_context(meeting_id, organizer_id)
@@ -262,7 +264,7 @@ async def join_meeting_via_graph(
         resp = await client.post(
             f"{GRAPH_API_BASE}/communications/calls",
             headers={
-                "Authorization": f"Bearer {bot_token}",
+                "Authorization": f"Bearer {graph_token}",
                 "Content-Type": "application/json",
             },
             json=payload,
@@ -290,11 +292,11 @@ async def hangup_via_graph(call_id: str) -> None:
     """Bot を会議から退出させる (DELETE /communications/calls/{id})。"""
     if not is_configured():
         return
-    bot_token = await get_bot_token()
+    graph_token = await get_graph_token()
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.delete(
             f"{GRAPH_API_BASE}/communications/calls/{call_id}",
-            headers={"Authorization": f"Bearer {bot_token}"},
+            headers={"Authorization": f"Bearer {graph_token}"},
         )
         # 404 は既に消えてる扱いで OK
         if resp.status_code not in (200, 202, 204, 404):
