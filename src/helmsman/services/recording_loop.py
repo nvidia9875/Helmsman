@@ -44,6 +44,25 @@ _recording_tasks: dict[str, asyncio.Task[None]] = {}
 # (graph_calling._call_registry にも同じ情報があるが、こちらは録音専用に別途持つ)
 _recording_meta: dict[str, tuple[str, str]] = {}
 
+# TTS playPrompt 中の call_id 集合。recording loop はこの間 chunk trigger をスキップする。
+# Microsoft Graph は call あたり 1 media operation しか同時実行できないため、
+# recordResponse loop が playPrompt を割り込んで打ち切ってしまう問題への対処。
+_tts_paused_calls: set[str] = set()
+
+
+def pause_recording_for_tts(call_id: str) -> None:
+    """TTS 再生中は recording loop を一時停止する。play_text_in_graph_call から呼ぶ。"""
+    _tts_paused_calls.add(call_id)
+
+
+def resume_recording_after_tts(call_id: str) -> None:
+    _tts_paused_calls.discard(call_id)
+
+
+def is_paused_for_tts(call_id: str) -> bool:
+    return call_id in _tts_paused_calls
+
+
 # 1 chunk の長さ (秒)。Microsoft Graph 仕様で max 60s だが、長すぎると遅延悪化。
 CHUNK_DURATION_SEC = 10
 # chunk 間の sleep (秒)。0 にして実質ゼロ gap、Microsoft 側 rate limit に当たれば調整。
@@ -122,6 +141,11 @@ async def _recording_loop(call_id: str, meeting_id: str, organizer_id: str) -> N
     )
     try:
         while True:
+            # TTS 再生中なら chunk trigger をスキップ
+            if is_paused_for_tts(call_id):
+                logger.info("recording.paused_for_tts", call_id=call_id)
+                await asyncio.sleep(1)
+                continue
             result = await _trigger_recording(call_id)
             # 録音は ~CHUNK_DURATION_SEC かかる + webhook 経由で別途処理
             # ここでは次の chunk まで待つだけ

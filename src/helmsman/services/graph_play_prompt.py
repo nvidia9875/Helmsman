@@ -18,6 +18,10 @@ import httpx
 from helmsman.core.config import get_settings
 from helmsman.core.logging import logger
 from helmsman.services.graph_calling import GRAPH_API_BASE, get_graph_token
+from helmsman.services.recording_loop import (
+    pause_recording_for_tts,
+    resume_recording_after_tts,
+)
 from helmsman.services.tts import synthesize_pcm
 
 # tts key → WAV bytes (process-local)
@@ -59,6 +63,14 @@ async def play_text_in_graph_call(call_id: str, text: str) -> bool:
     Returns:
         True: Graph に playPrompt 受理された (会議で再生される)
         False: TTS 合成失敗 / Graph エラー / 設定不備
+
+    Note:
+        Microsoft Graph は call あたり 1 media operation のみ同時実行可能。
+        recordResponse loop が走ってると playPrompt を打ち切るため、TTS 中は
+        loop を pause する (pause_recording_for_tts / resume_recording_after_tts)。
+        再生完了は webhook の playPromptOperation completed イベントで検知して
+        resume するが、念のため synthesize_pcm の長さから推定した duration 後に
+        background task で resume も予約する。
     """
     text = (text or "").strip()
     if not text:
@@ -102,6 +114,25 @@ async def play_text_in_graph_call(call_id: str, text: str) -> bool:
         "clientContext": f"tts:{key}",
     }
 
+    # 再生中は recording loop を pause (1 op only 制限への対処)
+    pause_recording_for_tts(call_id)
+
+    # 推定再生時間 = PCM bytes / (16000 Hz * 2 bytes/sample) + 余裕 2 秒
+    estimated_duration_sec = len(pcm) / 32000.0 + 2.0
+
+    async def _auto_resume() -> None:
+        import asyncio as _asyncio
+        await _asyncio.sleep(estimated_duration_sec)
+        resume_recording_after_tts(call_id)
+        logger.info(
+            "graph_tts.auto_resume",
+            call_id=call_id,
+            after_sec=round(estimated_duration_sec, 1),
+        )
+
+    import asyncio as _asyncio
+    _asyncio.create_task(_auto_resume())
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             resp = await client.post(
@@ -115,6 +146,7 @@ async def play_text_in_graph_call(call_id: str, text: str) -> bool:
         except httpx.HTTPError as e:
             logger.warning("graph_tts.request_failed", error=str(e))
             drop_cached_tts(key)
+            resume_recording_after_tts(call_id)
             return False
 
         if resp.status_code >= 400:
@@ -125,6 +157,7 @@ async def play_text_in_graph_call(call_id: str, text: str) -> bool:
                 text=text[:80],
             )
             drop_cached_tts(key)
+            resume_recording_after_tts(call_id)
             return False
 
         try:
@@ -136,6 +169,7 @@ async def play_text_in_graph_call(call_id: str, text: str) -> bool:
             call_id=call_id,
             op_id=op.get("id"),
             wav_bytes=len(wav),
+            duration_sec=round(estimated_duration_sec - 2.0, 1),
             text=text[:80],
         )
         # cache cleanup は webhook の playPromptOperation completed 受信時に
