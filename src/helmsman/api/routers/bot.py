@@ -714,12 +714,19 @@ async def graph_calling_callback(
             from helmsman.services.recording_loop import start_recording
             start_recording(call_id, meeting_id, organizer_id)
 
-        # disconnected になったら call registry + 録音ループからも削除
+        # disconnected になったら call registry + 録音 + CallSession 全部削除
         if meeting.bot_status == "disconnected" and call_id:
             from helmsman.services.graph_calling import unregister_call
             from helmsman.services.recording_loop import stop_recording
             unregister_call(call_id)
             stop_recording(call_id)
+            # CallSession (call_buffer) からも削除 → lookup_by_meeting が古い call_id を返さない
+            try:
+                await get_call_registry().drop(call_id)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "graph.session_drop_failed", call_id=call_id, error=str(e)
+                )
 
         await repo.upsert(meeting)
         handled += 1
