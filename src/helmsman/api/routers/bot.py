@@ -546,17 +546,28 @@ async def graph_calling_callback(
         meeting_id, organizer_id = parse_operation_context(op_ctx)
 
         call_state = resource_data.get("state", "")
-        # resource_url 例: /communications/calls/{id} or /communications/calls/{id}/participants
-        # call id を確実に抜き出す
-        call_id = resource_data.get("id") or ""
-        if not call_id and isinstance(resource_url, str):
+        # resource_url 例:
+        #   /communications/calls/{id}                            ← state 変更
+        #   /communications/calls/{id}/operations/{opId}          ← operation 完了 (録音等)
+        #   /communications/calls/{id}/participants               ← 参加者更新
+        # URL から call_id を必ず取り出す。resource_data.id は operation/participant では
+        # call_id ではなく opId 等になるため URL を優先する。
+        call_id = ""
+        operation_id = ""
+        if isinstance(resource_url, str):
             import re as _re
-            _m = _re.search(r"/communications/calls/([^/]+)", resource_url)
-            if _m:
-                call_id = _m.group(1)
+            _m_call = _re.search(r"/communications/calls/([^/]+)", resource_url)
+            if _m_call:
+                call_id = _m_call.group(1)
+            _m_op = _re.search(r"/operations/([^/?]+)", resource_url)
+            if _m_op:
+                operation_id = _m_op.group(1)
+        # フォールバック: state 変更 event なら resource_data.id が call_id
+        if not call_id and not operation_id:
+            call_id = resource_data.get("id") or ""
 
         # /operations/{id} は recordOperationCompleted 等の operation 完了通知。
-        is_operation_event = isinstance(resource_url, str) and "/operations/" in resource_url
+        is_operation_event = bool(operation_id)
         if is_operation_event:
             odata_type = resource_data.get("@odata.type", "")
             op_status = resource_data.get("status", "")
@@ -566,12 +577,13 @@ async def graph_calling_callback(
             logger.info(
                 "graph.operation",
                 call_id=call_id,
+                operation_id=operation_id,
                 odata_type=odata_type,
                 op_status=op_status,
                 has_recording_location=bool(recording_location),
                 resource_url=resource_url,
             )
-            # recordOperationCompleted で recordingLocation がある → STT に流す (M.C2 次フェーズ)
+            # recordOperationCompleted で recordingLocation あり → STT に流す (M.C2)
             if (
                 "recordOperation" in odata_type
                 and op_status == "completed"
@@ -583,6 +595,7 @@ async def graph_calling_callback(
                 logger.info(
                     "graph.recording_ready",
                     call_id=call_id,
+                    operation_id=operation_id,
                     meeting_id=rec_meeting_id,
                     organizer_id=rec_organizer_id,
                     location=recording_location[:120],
