@@ -44,10 +44,10 @@ _recording_tasks: dict[str, asyncio.Task[None]] = {}
 # (graph_calling._call_registry にも同じ情報があるが、こちらは録音専用に別途持つ)
 _recording_meta: dict[str, tuple[str, str]] = {}
 
-# 1 chunk の長さ (秒)
+# 1 chunk の長さ (秒)。Microsoft Graph 仕様で max 60s だが、長すぎると遅延悪化。
 CHUNK_DURATION_SEC = 10
-# chunk 間の sleep (秒、rate limit 回避)
-INTER_CHUNK_SLEEP_SEC = 1
+# chunk 間の sleep (秒)。0 にして実質ゼロ gap、Microsoft 側 rate limit に当たれば調整。
+INTER_CHUNK_SLEEP_SEC = 0
 
 
 async def _trigger_recording(call_id: str) -> dict[str, Any] | None:

@@ -123,7 +123,7 @@ def _build_silent_wav(duration_ms: int = 500) -> bytes:
     return header + (b"\x00" * data_size)
 
 
-_SILENT_WAV_BYTES = _build_silent_wav()
+_SILENT_WAV_BYTES = _build_silent_wav(duration_ms=100)
 
 
 @app.get("/static/silent.wav")
