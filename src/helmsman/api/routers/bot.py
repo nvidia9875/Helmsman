@@ -555,6 +555,42 @@ async def graph_calling_callback(
             if _m:
                 call_id = _m.group(1)
 
+        # /operations/{id} は recordOperationCompleted 等の operation 完了通知。
+        is_operation_event = isinstance(resource_url, str) and "/operations/" in resource_url
+        if is_operation_event:
+            odata_type = resource_data.get("@odata.type", "")
+            op_status = resource_data.get("status", "")
+            recording_location = resource_data.get("recordingLocation") or resource_data.get(
+                "resultInfo", {}
+            ).get("recordingLocation")
+            logger.info(
+                "graph.operation",
+                call_id=call_id,
+                odata_type=odata_type,
+                op_status=op_status,
+                has_recording_location=bool(recording_location),
+                resource_url=resource_url,
+            )
+            # recordOperationCompleted で recordingLocation がある → STT に流す (M.C2 次フェーズ)
+            if (
+                "recordOperation" in odata_type
+                and op_status == "completed"
+                and recording_location
+                and call_id
+            ):
+                from helmsman.services.recording_loop import get_recording_meta
+                rec_meeting_id, rec_organizer_id = get_recording_meta(call_id)
+                logger.info(
+                    "graph.recording_ready",
+                    call_id=call_id,
+                    meeting_id=rec_meeting_id,
+                    organizer_id=rec_organizer_id,
+                    location=recording_location[:120],
+                )
+                # TODO: M.C2 で download + Azure Speech STT + tick へ流す
+            handled += 1
+            continue
+
         # /participants サブパスへの notification は participant 一覧の更新。
         # human 参加者ゼロになったら Teams 会議終了 ≒ 自動 hangup する。
         is_participants_event = isinstance(resource_url, str) and resource_url.endswith(
@@ -637,10 +673,17 @@ async def graph_calling_callback(
             meeting.bot_status = "disconnected"
             meeting.bot_call_connection_id = None
 
-        # disconnected になったら call registry からも削除
+        # call established → 録音ループ開始 (idempotent)
+        if call_state == "established" and call_id and meeting_id and organizer_id:
+            from helmsman.services.recording_loop import start_recording
+            start_recording(call_id, meeting_id, organizer_id)
+
+        # disconnected になったら call registry + 録音ループからも削除
         if meeting.bot_status == "disconnected" and call_id:
             from helmsman.services.graph_calling import unregister_call
+            from helmsman.services.recording_loop import stop_recording
             unregister_call(call_id)
+            stop_recording(call_id)
 
         await repo.upsert(meeting)
         handled += 1
