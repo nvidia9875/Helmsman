@@ -508,9 +508,14 @@ async def graph_calling_callback(
         meeting_id, organizer_id = parse_operation_context(op_ctx)
 
         call_state = resource_data.get("state", "")
-        call_id = resource_data.get("id") or (
-            resource_url.rsplit("/", 1)[-1] if isinstance(resource_url, str) else ""
-        )
+        # resource_url 例: /communications/calls/{id} or /communications/calls/{id}/participants
+        # call id を確実に抜き出す
+        call_id = resource_data.get("id") or ""
+        if not call_id and isinstance(resource_url, str):
+            import re as _re
+            _m = _re.search(r"/communications/calls/([^/]+)", resource_url)
+            if _m:
+                call_id = _m.group(1)
 
         # fallback: registry から call_id で meeting を引く
         if not (meeting_id and organizer_id) and call_id:
