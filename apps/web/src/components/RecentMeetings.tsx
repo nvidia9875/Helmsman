@@ -142,11 +142,28 @@ function formatDate(iso: string | null): string {
   });
 }
 
-const STATUS_FROM_MEETING: Record<string, { kind: StatusKind; label: string }> = {
-  in_progress: { kind: 'active', label: 'LIVE' },
-  scheduled: { kind: 'warning', label: 'SCHED' },
-  concluded: { kind: 'neutral', label: 'DONE' },
-};
+/**
+ * meeting.state と meeting.bot_status を組み合わせた表示ステータス。
+ * Teams 会議が終わっても meeting.state は 'in_progress' のまま残る (Helmsman が自動 conclude しない) ため、
+ * bot_status を優先して disconnected/failed を red 表示にする。
+ */
+function deriveStatus(m: Meeting): { kind: StatusKind; label: string } {
+  // 失敗系は最優先で red
+  if (m.bot_status === 'failed') return { kind: 'danger', label: 'FAILED' };
+  // 会議そのものが終了
+  if (m.state === 'concluded') return { kind: 'neutral', label: 'DONE' };
+  // scheduled (未開始)
+  if (m.state === 'scheduled') return { kind: 'warning', label: 'SCHED' };
+
+  // ここから state === 'in_progress'
+  if (m.bot_status === 'in_call') return { kind: 'active', label: 'LIVE' };
+  if (m.bot_status === 'connecting') return { kind: 'warning', label: 'JOINING' };
+  // bot が退出済 / 未派遣 → 終わってる扱いで red
+  if (m.bot_status === 'disconnected') return { kind: 'danger', label: 'ENDED' };
+  if (m.bot_status === 'idle') return { kind: 'neutral', label: 'IDLE' };
+
+  return { kind: 'neutral', label: m.state.toUpperCase() };
+}
 
 interface RecentMeetingsProps {
   organizerId: string;
@@ -204,7 +221,7 @@ export function RecentMeetings({
           </thead>
           <tbody>
             {meetings.map((m, i) => {
-              const status = STATUS_FROM_MEETING[m.state] ?? { kind: 'neutral' as StatusKind, label: m.state.toUpperCase() };
+              const status = deriveStatus(m);
               return (
                 <tr
                   key={m.id}
