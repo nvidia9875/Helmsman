@@ -141,11 +141,28 @@ async def _recording_loop(call_id: str, meeting_id: str, organizer_id: str) -> N
 
 
 def start_recording(call_id: str, meeting_id: str, organizer_id: str) -> None:
-    """call の音声録音ループを開始する。既に走ってる call には何もしない (idempotent)。"""
+    """call の音声録音ループを開始する。既に走ってる call には何もしない (idempotent)。
+
+    CallSession も同時に作成しておく ( /bot/transcript polling が即座に
+    bot_active=true を返せるよう。utterance はまだ空)。
+    """
     existing = _recording_tasks.get(call_id)
     if existing and not existing.done():
         return
     _recording_meta[call_id] = (meeting_id, organizer_id)
+
+    # CallSession を先に作る (background task で)
+    async def _bootstrap() -> None:
+        from helmsman.services.call_buffer import get_call_registry
+        registry = get_call_registry()
+        await registry.get_or_create(
+            call_connection_id=call_id,
+            meeting_id=meeting_id,
+            organizer_id=organizer_id,
+        )
+
+    asyncio.create_task(_bootstrap())
+
     task = asyncio.create_task(_recording_loop(call_id, meeting_id, organizer_id))
     _recording_tasks[call_id] = task
     logger.info(

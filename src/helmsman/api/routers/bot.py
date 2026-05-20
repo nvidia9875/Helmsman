@@ -583,7 +583,7 @@ async def graph_calling_callback(
                 has_recording_location=bool(recording_location),
                 resource_url=resource_url,
             )
-            # recordOperationCompleted で recordingLocation あり → STT に流す (M.C2)
+            # recordOperationCompleted で recordingLocation あり → STT に流す
             if (
                 "recordOperation" in odata_type
                 and op_status == "completed"
@@ -592,15 +592,31 @@ async def graph_calling_callback(
             ):
                 from helmsman.services.recording_loop import get_recording_meta
                 rec_meeting_id, rec_organizer_id = get_recording_meta(call_id)
+                access_token = (
+                    resource_data.get("recordingAccessToken")
+                    or resource_data.get("resultInfo", {}).get("recordingAccessToken")
+                )
                 logger.info(
                     "graph.recording_ready",
                     call_id=call_id,
                     operation_id=operation_id,
                     meeting_id=rec_meeting_id,
                     organizer_id=rec_organizer_id,
+                    has_token=bool(access_token),
                     location=recording_location[:120],
                 )
-                # TODO: M.C2 で download + Azure Speech STT + tick へ流す
+                if rec_meeting_id and rec_organizer_id:
+                    # fire-and-forget: download + STT は時間かかるので背景タスク化
+                    from helmsman.services.recording_stt import transcribe_and_dispatch
+                    asyncio.create_task(
+                        transcribe_and_dispatch(
+                            call_id=call_id,
+                            meeting_id=rec_meeting_id,
+                            organizer_id=rec_organizer_id,
+                            recording_url=recording_location,
+                            access_token=access_token,
+                        )
+                    )
             handled += 1
             continue
 
