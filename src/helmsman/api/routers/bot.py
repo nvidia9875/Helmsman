@@ -435,6 +435,43 @@ def _refresh_participants_cache(meeting_id: str, event_data: dict[str, Any]) -> 
 
 # ---------- Microsoft Graph Communications webhook (no auth) ----------
 
+
+def _count_human_participants(participants: list[Any]) -> int:
+    """Graph participants 配列から human (= bot 以外) の数を数える。
+
+    Participant の identity スキーマ揺れに対する防御:
+    - identity.user.id がある → human
+    - identity.application.id がある → application (bot 等) → 除外
+    - identity.guest.id がある → human (anonymous external user)
+    """
+    from helmsman.core.config import get_settings
+
+    settings = get_settings()
+    bot_app_id = (settings.microsoft_app_id or "").lower()
+
+    count = 0
+    for p in participants:
+        if not isinstance(p, dict):
+            continue
+        info = p.get("info") or {}
+        identity = info.get("identity") or p.get("identity") or {}
+        if not isinstance(identity, dict):
+            continue
+        # user or guest が居れば human としてカウント
+        if identity.get("user") or identity.get("guest"):
+            count += 1
+            continue
+        # application のみで、かつ自分の bot app id なら除外。それ以外の bot は human 扱い (誤判定回避)
+        app = identity.get("application") or {}
+        if isinstance(app, dict):
+            app_id = (app.get("id") or "").lower()
+            if app_id and app_id != bot_app_id:
+                count += 1
+    return count
+
+
+
+
 # Graph call state → Helmsman bot_status マッピング
 # https://learn.microsoft.com/graph/api/resources/call (state プロパティ)
 _STATUS_BY_GRAPH_STATE = {
@@ -516,6 +553,42 @@ async def graph_calling_callback(
             _m = _re.search(r"/communications/calls/([^/]+)", resource_url)
             if _m:
                 call_id = _m.group(1)
+
+        # /participants サブパスへの notification は participant 一覧の更新。
+        # human 参加者ゼロになったら Teams 会議終了 ≒ 自動 hangup する。
+        is_participants_event = isinstance(resource_url, str) and resource_url.endswith(
+            "/participants"
+        )
+        if is_participants_event and call_id:
+            participants = notif.get("resourceData")
+            if isinstance(participants, dict):
+                participants = participants.get("value") or []
+            if not isinstance(participants, list):
+                participants = []
+            human_count = _count_human_participants(participants)
+            logger.info(
+                "graph.participants",
+                call_id=call_id,
+                count=len(participants),
+                human_count=human_count,
+            )
+            if human_count == 0:
+                logger.info(
+                    "graph.auto_hangup",
+                    call_id=call_id,
+                    reason="no_human_participants",
+                )
+                try:
+                    from helmsman.services.graph_calling import hangup_via_graph
+                    await hangup_via_graph(call_id)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(
+                        "graph.auto_hangup_failed",
+                        call_id=call_id,
+                        error=str(e),
+                    )
+            handled += 1
+            continue
 
         # fallback: registry から call_id で meeting を引く
         if not (meeting_id and organizer_id) and call_id:
