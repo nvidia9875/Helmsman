@@ -461,7 +461,8 @@ def _count_human_participants(participants: list[Any]) -> int:
         if identity.get("user") or identity.get("guest"):
             count += 1
             continue
-        # application のみで、かつ自分の bot app id なら除外。それ以外の bot は human 扱い (誤判定回避)
+        # application で自分の bot app id なら除外。
+        # 他の bot は human 扱いにする (誤判定回避)
         app = identity.get("application") or {}
         if isinstance(app, dict):
             app_id = (app.get("id") or "").lower()
