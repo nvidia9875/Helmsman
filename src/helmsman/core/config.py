@@ -50,11 +50,23 @@ class Settings(BaseSettings):
     azure_docintel_endpoint: str | None = None
     azure_docintel_key: str | None = None
 
-    # ----- Azure Communication Services (Teams bot) -----
+    # ----- Azure Communication Services (Teams bot) — DEPRECATED 2026-05-20 -----
+    # ACS Call Automation の TeamsMeetingLinkLocator が公式 API/全SDK に存在しないと判明 → Graph Calling に移行
     acs_connection_string: str | None = None
     acs_callback_base_url: str | None = None
-    # ACS が webhook を叩く先のパス (callback_base_url + このパス)
     acs_callback_path: str = "/bot/callback"
+
+    # ----- Microsoft Teams Bot (Graph Calling, Service-hosted media) -----
+    microsoft_app_id: str | None = None
+    microsoft_app_password: str | None = None
+    microsoft_app_tenant_id: str | None = None
+    microsoft_app_type: str = "SingleTenant"
+    microsoft_app_display_name: str = "helmsman-bot"
+    # Graph Calling の webhook が叩く URL は callback_base_url + graph_callback_path
+    # callback_base_url は acs_callback_base_url を流用 (Container App の public FQDN)
+    graph_callback_path: str = "/api/calling"
+    # Teams 会議の organizer ユーザー (Application permission で /users/{id}/onlineMeetings を引く時に必要)
+    microsoft_app_organizer_user_id: str | None = None
 
     # ----- Azure AI Speech -----
     azure_speech_key: str | None = None

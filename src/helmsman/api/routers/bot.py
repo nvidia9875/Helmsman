@@ -431,3 +431,131 @@ def _refresh_participants_cache(meeting_id: str, event_data: dict[str, Any]) -> 
             learned=learned,
             total=len(session.participants_by_raw_id),
         )
+
+
+# ---------- Microsoft Graph Communications webhook (no auth) ----------
+
+# Graph call state → Helmsman bot_status マッピング
+# https://learn.microsoft.com/graph/api/resources/call (state プロパティ)
+_STATUS_BY_GRAPH_STATE = {
+    "incoming": "connecting",
+    "establishing": "connecting",
+    "established": "in_call",
+    "hold": "in_call",
+    "transferring": "in_call",
+    "redirecting": "in_call",
+    "terminating": "disconnected",
+    "terminated": "disconnected",
+}
+
+
+@router.post("/api/calling", status_code=status.HTTP_200_OK)
+async def graph_calling_callback(
+    request: Request,
+    repo: MeetingRepository = Depends(get_repo),
+) -> dict[str, Any]:
+    """Microsoft Graph Communications API からの notification webhook。
+
+    POST body 形式 (https://learn.microsoft.com/graph/api/resources/commsnotifications):
+    ```
+    {
+      "@odata.type": "#microsoft.graph.commsNotifications",
+      "value": [
+        {
+          "@odata.type": "#microsoft.graph.commsNotification",
+          "changeType": "updated",
+          "resourceUrl": "/communications/calls/{id}",
+          "resourceData": {
+            "@odata.type": "#microsoft.graph.call",
+            "state": "established",
+            "operationContext": "meeting:m-xxx|org:u-yyy"
+          }
+        }
+      ]
+    }
+    ```
+
+    認証: Microsoft が Bot Framework JWT 付きで POST してくる。本番では JWT 検証推奨だが
+    ハッカソン期間は public endpoint として運用 (rate limit のみ Container App 側で制御)。
+    """
+    payload = await request.json()
+    notifications = payload.get("value") if isinstance(payload, dict) else []
+    if not isinstance(notifications, list):
+        notifications = []
+
+    handled = 0
+    for notif in notifications:
+        change_type = notif.get("changeType", "")
+        resource_url = notif.get("resourceUrl", "")
+        resource_data = notif.get("resourceData") or {}
+
+        # operationContext は call の作成時に設定したもの。state 変更通知に含まれる。
+        op_ctx = resource_data.get("operationContext") or notif.get("operationContext")
+        meeting_id, organizer_id = parse_operation_context(op_ctx)
+
+        call_state = resource_data.get("state", "")
+        call_id = resource_data.get("id") or resource_url.rsplit("/", 1)[-1]
+
+        logger.info(
+            "graph.event",
+            change_type=change_type,
+            call_state=call_state,
+            call_id=call_id,
+            meeting_id=meeting_id,
+            organizer_id=organizer_id,
+            resource_url=resource_url,
+        )
+
+        if not (meeting_id and organizer_id):
+            # operationContext が無いイベント (participantUpdate 等) はスキップ
+            continue
+
+        meeting = await repo.get(meeting_id, organizer_id)
+        if not meeting:
+            logger.warning(
+                "graph.event_unknown_meeting",
+                meeting_id=meeting_id,
+                organizer_id=organizer_id,
+            )
+            continue
+
+        meeting.bot_last_event_at = datetime.now(UTC)
+        # call_id は graph_calling.py が返した値と同じはず。記録しておく。
+        if call_id and not meeting.bot_call_connection_id:
+            meeting.bot_call_connection_id = call_id
+
+        new_status = _STATUS_BY_GRAPH_STATE.get(call_state)
+        if new_status is not None:
+            meeting.bot_status = new_status
+            if new_status == "disconnected":
+                meeting.bot_call_connection_id = None
+
+        # changeType=deleted は call が消えた = 確実に disconnected
+        if change_type == "deleted":
+            meeting.bot_status = "disconnected"
+            meeting.bot_call_connection_id = None
+
+        await repo.upsert(meeting)
+        handled += 1
+
+    return {"handled": handled}
+
+
+@router.post("/api/messages", status_code=status.HTTP_200_OK)
+async def bot_framework_messages(request: Request) -> dict[str, Any]:
+    """Bot Framework メッセージング webhook (Teams チャット bot 用、Phase D で使う)。
+
+    現状は no-op (受信して 200 を返すだけ)。Phase D で Teams app からの
+    1:1 chat / adaptive card メッセージを処理する予定。
+    """
+    try:
+        body = await request.json()
+        logger.info(
+            "bot.framework_message",
+            activity_type=body.get("type"),
+            from_id=(body.get("from") or {}).get("id", ""),
+        )
+    except Exception:  # noqa: BLE001
+        # body が JSON でない / 空 — health check の可能性
+        pass
+    return {"ok": True}
