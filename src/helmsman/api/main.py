@@ -98,3 +98,41 @@ async def root() -> dict[str, Any]:
         "description": "Goal-driven AI meeting facilitator",
         "docs": "/docs",
     }
+
+
+# 500ms silent WAV (16kHz, 16-bit, mono) を在中バッファとして 1 回だけ生成
+def _build_silent_wav(duration_ms: int = 500) -> bytes:
+    import struct
+    sample_rate = 16000
+    num_samples = sample_rate * duration_ms // 1000
+    data_size = num_samples * 2  # 16-bit = 2 bytes
+    header = (
+        b"RIFF"
+        + struct.pack("<I", 36 + data_size)
+        + b"WAVEfmt "
+        + struct.pack("<I", 16)
+        + struct.pack("<H", 1)
+        + struct.pack("<H", 1)
+        + struct.pack("<I", sample_rate)
+        + struct.pack("<I", sample_rate * 2)
+        + struct.pack("<H", 2)
+        + struct.pack("<H", 16)
+        + b"data"
+        + struct.pack("<I", data_size)
+    )
+    return header + (b"\x00" * data_size)
+
+
+_SILENT_WAV_BYTES = _build_silent_wav()
+
+
+@app.get("/static/silent.wav")
+async def silent_wav() -> Any:
+    """Microsoft Graph recordResponse prompts 用の silent WAV (16kHz/16bit/mono, 500ms)。
+
+    Service-hosted bot で audio capture するために prompts 配列に 1 件以上必須。
+    silent prompt で実質無音から録音開始する。
+    """
+    from fastapi import Response
+
+    return Response(content=_SILENT_WAV_BYTES, media_type="audio/wav")

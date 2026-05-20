@@ -18,12 +18,24 @@ Azure Speech で文字化して既存 tick pipeline に流す。
 from __future__ import annotations
 
 import asyncio
+import uuid
 from typing import Any
 
 import httpx
 
+from helmsman.core.config import get_settings
 from helmsman.core.logging import logger
 from helmsman.services.graph_calling import GRAPH_API_BASE, get_graph_token
+
+
+def _silent_prompt_url() -> str:
+    """Microsoft Graph recordResponse の prompts に渡す silent WAV の URL。
+
+    api/main.py の /static/silent.wav (500ms 無音) を参照。
+    """
+    s = get_settings()
+    base = (s.acs_callback_base_url or "").rstrip("/")
+    return f"{base}/static/silent.wav"
 
 # 進行中の recording loop タスク: call_id → asyncio.Task
 _recording_tasks: dict[str, asyncio.Task[None]] = {}
@@ -50,9 +62,20 @@ async def _trigger_recording(call_id: str) -> dict[str, Any] | None:
         logger.warning("recording.token_failed", call_id=call_id, error=str(e))
         return None
 
+    # Microsoft 仕様: prompts は 1 件必須 (空 [] や 2 件以上は error code 8523)。
+    # silent WAV を 1 件だけ渡す。
     payload: dict[str, Any] = {
         "bargeInAllowed": True,
-        "prompts": [],
+        "prompts": [
+            {
+                "@odata.type": "#microsoft.graph.mediaPrompt",
+                "mediaInfo": {
+                    "@odata.type": "#microsoft.graph.mediaInfo",
+                    "uri": _silent_prompt_url(),
+                    "resourceId": str(uuid.uuid4()),
+                },
+            }
+        ],
         "maxRecordDurationInSeconds": CHUNK_DURATION_SEC,
         "initialSilenceTimeoutInSeconds": CHUNK_DURATION_SEC,
         "maxSilenceTimeoutInSeconds": CHUNK_DURATION_SEC,
