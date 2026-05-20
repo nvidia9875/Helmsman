@@ -590,6 +590,21 @@ async def graph_calling_callback(
                 has_recording_location=bool(recording_location),
                 resource_url=resource_url,
             )
+
+            # playPromptOperation completed → 即 recording loop resume
+            # (auto_resume fallback タイマーよりも正確)
+            if (
+                "playPromptOperation" in odata_type
+                and op_status == "completed"
+                and call_id
+            ):
+                from helmsman.services.recording_loop import resume_recording_after_tts
+                resume_recording_after_tts(call_id)
+                logger.info(
+                    "graph_tts.resumed_via_webhook",
+                    call_id=call_id,
+                    op_id=operation_id,
+                )
             # recordOperationCompleted で recordingLocation あり → STT に流す
             if (
                 "recordOperation" in odata_type

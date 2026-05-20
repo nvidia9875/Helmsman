@@ -117,15 +117,17 @@ async def play_text_in_graph_call(call_id: str, text: str) -> bool:
     # 再生中は recording loop を pause (1 op only 制限への対処)
     pause_recording_for_tts(call_id)
 
-    # 推定再生時間 = PCM bytes / (16000 Hz * 2 bytes/sample) + 余裕 2 秒
-    estimated_duration_sec = len(pcm) / 32000.0 + 2.0
+    # 推定再生時間 = PCM の長さ + Microsoft 側の playback queue 遅延 + 安全マージン
+    # 内訳: PCM bytes / (16000 Hz * 2 bytes/sample) + queue 遅延 3s + safety 2s
+    pcm_duration_sec = len(pcm) / 32000.0
+    estimated_duration_sec = pcm_duration_sec + 5.0
 
     async def _auto_resume() -> None:
         import asyncio as _asyncio
         await _asyncio.sleep(estimated_duration_sec)
         resume_recording_after_tts(call_id)
         logger.info(
-            "graph_tts.auto_resume",
+            "graph_tts.auto_resume_fallback",
             call_id=call_id,
             after_sec=round(estimated_duration_sec, 1),
         )
