@@ -59,6 +59,44 @@ const useStyles = makeStyles({
   topicDecided: {
     opacity: 0.65,
   },
+  topicActive: {
+    backgroundColor: 'rgba(92, 240, 245, 0.06)',
+    border: '1px solid rgba(92, 240, 245, 0.28)',
+    boxShadow: 'inset 2px 0 0 var(--accent-cyan)',
+  },
+  onAir: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginLeft: '8px',
+    padding: '1px 6px',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(92, 240, 245, 0.16)',
+    color: 'var(--accent-cyan)',
+    fontSize: '9px',
+    fontWeight: 700,
+    letterSpacing: '0.1em',
+    fontFamily: 'var(--font-mono)',
+  },
+  progressTrack: {
+    position: 'relative',
+    height: '3px',
+    borderRadius: '999px',
+    backgroundColor: 'var(--border-hairline)',
+    overflow: 'hidden',
+    marginTop: '8px',
+  },
+  progressFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    background: 'linear-gradient(90deg, var(--accent), var(--accent-cyan))',
+    transitionProperty: 'width',
+    transitionDuration: '600ms',
+    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    boxShadow: '0 0 8px rgba(92, 240, 245, 0.4)',
+  },
   topicDot: {
     marginTop: '5px',
   },
@@ -144,6 +182,7 @@ export function Sidebar({ meeting }: Props) {
   const styles = useStyles();
   const topics = meeting.topics;
   const decidedCount = topics.filter((t) => t.state === 'decided').length;
+  const progressPct = topics.length === 0 ? 0 : Math.round((decidedCount / topics.length) * 100);
 
   return (
     <aside className={styles.root}>
@@ -154,6 +193,18 @@ export function Sidebar({ meeting }: Props) {
             {decidedCount}/{topics.length}
           </span>
         </div>
+        {topics.length > 0 && (
+          <div
+            className={styles.progressTrack}
+            role="progressbar"
+            aria-valuenow={progressPct}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="議題の決着率"
+          >
+            <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
+          </div>
+        )}
         <div className={styles.sep} />
         {topics.length === 0 ? (
           <p className={styles.empty}>(no topics — set a goal to decompose)</p>
@@ -165,13 +216,19 @@ export function Sidebar({ meeting }: Props) {
                 className={mergeClasses(
                   styles.topicRow,
                   t.state === 'decided' && styles.topicDecided,
+                  (t.state === 'discussing' || t.state === 'deep_dive') && styles.topicActive,
                 )}
               >
                 <span className={styles.topicDot}>
-                  <StatusDot kind={stateDot(t.state)} />
+                  <StatusDot kind={stateDot(t.state)} pulse={t.state === 'deep_dive'} />
                 </span>
                 <div className={styles.topicBody}>
-                  <span className={styles.topicName}>{t.name}</span>
+                  <span className={styles.topicName}>
+                    {t.name}
+                    {(t.state === 'discussing' || t.state === 'deep_dive') && (
+                      <span className={styles.onAir}>ON&nbsp;AIR</span>
+                    )}
+                  </span>
                   <span className={styles.topicMeta}>
                     {STATE_LABEL[t.state]} · {t.priority}
                   </span>

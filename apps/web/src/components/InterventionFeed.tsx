@@ -11,6 +11,8 @@ const useStyles = makeStyles({
     border: '1px solid var(--border-hairline)',
     borderRadius: '10px',
     backgroundColor: 'var(--bg-1)',
+    backdropFilter: 'blur(12px) saturate(140%)',
+    boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.04)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',

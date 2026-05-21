@@ -44,9 +44,24 @@ const useStyles = makeStyles({
     flexShrink: 0,
   },
   beaconActive: {
-    color: 'var(--accent)',
-    border: '1px solid var(--accent)',
-    boxShadow: '0 0 0 4px rgba(91, 141, 239, 0.12)',
+    color: 'var(--accent-cyan)',
+    border: '1px solid var(--accent-cyan)',
+    backgroundColor: 'rgba(92, 240, 245, 0.06)',
+    boxShadow:
+      '0 0 0 4px rgba(92, 240, 245, 0.10), 0 0 24px 4px rgba(92, 240, 245, 0.18), inset 0 0 12px rgba(92, 240, 245, 0.18)',
+    animationName: {
+      '0%, 100%': {
+        boxShadow:
+          '0 0 0 4px rgba(92, 240, 245, 0.10), 0 0 24px 4px rgba(92, 240, 245, 0.18), inset 0 0 12px rgba(92, 240, 245, 0.18)',
+      },
+      '50%': {
+        boxShadow:
+          '0 0 0 6px rgba(92, 240, 245, 0.14), 0 0 32px 8px rgba(92, 240, 245, 0.28), inset 0 0 18px rgba(92, 240, 245, 0.28)',
+      },
+    },
+    animationDuration: '3s',
+    animationIterationCount: 'infinite',
+    animationTimingFunction: 'ease-in-out',
   },
   body: {
     display: 'flex',

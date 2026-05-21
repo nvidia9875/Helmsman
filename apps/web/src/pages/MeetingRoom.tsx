@@ -234,7 +234,7 @@ export function MeetingRoom() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.main}>
+      <div className={`${styles.main} stagger`}>
         <header className={styles.header}>
           <span className={styles.eyebrow}>
             MISSION CONTROL · session
