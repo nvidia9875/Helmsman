@@ -62,6 +62,8 @@ class StartMeetingRequest(BaseModel):
     teams_meeting_url: str | None = None
     # グループ所属 (任意): 指定するとグループ文書も AI に流れる
     group_id: str | None = None
+    # AI ファシリテーター名 (任意、UI ヘッダー + agent prompt に使う)
+    facilitator_name: str | None = None
 
 
 class UtteranceRequest(BaseModel):
@@ -167,6 +169,7 @@ async def start_meeting(
         inherited_topic_ids=inherited_topic_ids,
         teams_meeting_url=req.teams_meeting_url,
         group_id=req.group_id,
+        facilitator_name=(req.facilitator_name or "").strip() or None,
     )
     if has_goal:
         _accumulate_usage(meeting.usage, [decomposer])
@@ -324,6 +327,65 @@ async def get_meeting_usage(
 class SetGoalRequest(BaseModel):
     goal: str = Field(..., min_length=1, max_length=500)
     mode: MeetingMode | None = None
+
+
+class TimekeeperAlertInput(BaseModel):
+    """Settings 編集時にクライアントが送る alert 形式 (id は server 側で振る)。"""
+
+    id: str | None = None
+    minutes_from_start: int = Field(..., ge=1, le=600)
+    message: str = Field(..., min_length=1, max_length=300)
+    enabled: bool = True
+
+
+class UpdateSettingsRequest(BaseModel):
+    """会議の追加設定を編集する。指定された field のみ反映、他は維持。"""
+
+    facilitator_name: str | None = None
+    steering_enabled: bool | None = None
+    timekeeper_alerts: list[TimekeeperAlertInput] | None = None
+
+
+@router.patch("/{meeting_id}/settings", response_model=Meeting)
+async def update_meeting_settings(
+    meeting_id: str,
+    organizer_id: str,
+    req: UpdateSettingsRequest,
+    repo: MeetingRepository = Depends(get_repo),
+) -> Meeting:
+    """会議の追加設定 (facilitator_name / steering_enabled / timekeeper_alerts) を編集。"""
+    from helmsman.models.meeting import TimekeeperAlert
+
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting:
+        raise HTTPException(404, "meeting not found")
+
+    if req.facilitator_name is not None:
+        # 空文字なら None にする
+        name = req.facilitator_name.strip()
+        meeting.facilitator_name = name or None
+    if req.steering_enabled is not None:
+        meeting.steering_enabled = req.steering_enabled
+    if req.timekeeper_alerts is not None:
+        # 既存 alert は id で同期、新規は新たに振る。fired は維持。
+        existing_by_id = {a.id: a for a in meeting.timekeeper_alerts}
+        new_alerts: list[TimekeeperAlert] = []
+        for inp in req.timekeeper_alerts:
+            prev = existing_by_id.get(inp.id or "") if inp.id else None
+            new_alerts.append(
+                TimekeeperAlert(
+                    id=inp.id or str(uuid4()),
+                    minutes_from_start=inp.minutes_from_start,
+                    message=inp.message,
+                    enabled=inp.enabled,
+                    fired=prev.fired if prev else False,
+                    fired_at=prev.fired_at if prev else None,
+                )
+            )
+        meeting.timekeeper_alerts = new_alerts
+
+    await repo.upsert(meeting)
+    return meeting
 
 
 @router.post("/{meeting_id}/set-goal", response_model=Meeting)

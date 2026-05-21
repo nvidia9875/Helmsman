@@ -81,6 +81,9 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     )
     participants = [chair]
 
+    # Timekeeper: 開始から N 分経過した alert を発火 (bot が音声で読み上げる)
+    await _maybe_fire_timekeeper(meeting, session)
+
     coverage = CoverageTracker()
     steering = SteeringAgent()
     decision_capture = DecisionCapture()
@@ -126,7 +129,9 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     dissent_cand = _ok(results[4])
 
     candidates: list[InterventionCandidate] = []
-    for c in (steering_cand, decision_cand, quiet_cand, dissent_cand):
+    # 議論方向確認 (Steering) は設定で OFF にできる
+    for c in (steering_cand if meeting.steering_enabled else None, decision_cand,
+              quiet_cand, dissent_cand):
         if c:
             candidates.append(c)
     tk = TimeKeeper().run(meeting)
@@ -184,3 +189,51 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
 def _build_l3_utterance(content: str, reason: str | None) -> str:
     """会議で読み上げる短文を組み立てる。reason は付けない (long 過ぎる)。"""
     return content.strip()
+
+
+async def _maybe_fire_timekeeper(meeting, session: CallSession) -> None:  # type: ignore[no-untyped-def]
+    """会議開始から N 分経過した alert を一回だけ発火する。
+
+    fired=False かつ enabled=True かつ elapsed_min >= minutes_from_start を満たす
+    alert を全部読み上げる。発火後は fired=True を Cosmos に書き戻し。
+    """
+    if not meeting.started_at or not meeting.timekeeper_alerts:
+        return
+    from datetime import UTC, datetime
+    elapsed_min = (datetime.now(UTC) - meeting.started_at).total_seconds() / 60.0
+
+    fired_any = False
+    for alert in meeting.timekeeper_alerts:
+        if alert.fired or not alert.enabled:
+            continue
+        if elapsed_min < alert.minutes_from_start:
+            continue
+        # 発火
+        alert.fired = True
+        alert.fired_at = datetime.now(UTC)
+        fired_any = True
+        logger.info(
+            "call.timekeeper_fire",
+            meeting_id=meeting.id,
+            alert_id=alert.id,
+            elapsed_min=round(elapsed_min, 1),
+            target_min=alert.minutes_from_start,
+            message=alert.message[:80],
+        )
+        # 音声発火 (session.media_ws が無い = Graph 経路)
+        if session.media_ws is not None:
+            from helmsman.services.tts import speak_into_call
+            asyncio.create_task(speak_into_call(session.media_ws, alert.message))
+        else:
+            from helmsman.services.graph_play_prompt import play_text_in_graph_call
+            asyncio.create_task(
+                play_text_in_graph_call(session.call_connection_id, alert.message)
+            )
+
+    if fired_any:
+        # fired フラグを Cosmos に書き戻し
+        from helmsman.repositories.meetings import MeetingRepository
+        try:
+            await MeetingRepository().upsert(meeting)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("call.timekeeper_save_failed", error=str(e))

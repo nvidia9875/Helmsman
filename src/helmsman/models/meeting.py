@@ -37,6 +37,17 @@ class UserIntensity(str, Enum):
     AGGRESSIVE = "aggressive"
 
 
+class TimekeeperAlert(BaseModel):
+    """会議開始から N 分経過時に bot が音声でアナウンスする alert。"""
+
+    id: str = Field(default_factory=lambda: str(uuid4()))
+    minutes_from_start: int = Field(..., ge=1, le=600)
+    message: str = Field(..., min_length=1, max_length=300)
+    enabled: bool = True
+    fired: bool = False
+    fired_at: datetime | None = None
+
+
 class Meeting(BaseModel):
     """会議エンティティ。Cosmos の `meetings` コンテナに格納される。"""
 
@@ -81,6 +92,14 @@ class Meeting(BaseModel):
 
     # ----- Intervention 履歴 (Frontend が feed として表示) -----
     delivered_interventions: list[InterventionDelivery] = Field(default_factory=list)
+
+    # ----- 追加設定 (2026-05-21) -----
+    # AI ファシリテーター名 (UI ヘッダー + agent prompt で使われる)
+    facilitator_name: str | None = None
+    # 議論方向確認 (SteeringAgent L3 介入) を有効化するか
+    steering_enabled: bool = True
+    # タイムキーパー: 開始から N 分経過時に bot がアナウンス
+    timekeeper_alerts: list[TimekeeperAlert] = Field(default_factory=list)
 
     @property
     def time_remaining_pct(self) -> float:
