@@ -1,6 +1,7 @@
 import { makeStyles, mergeClasses } from '@fluentui/react-components';
 import { useEffect, useState } from 'react';
 
+import { HelmsmanIcon } from '@/components/primitives/HelmsmanIcon';
 import { Pill, type PillKind } from '@/components/primitives/Pill';
 import { StatusDot, type StatusKind } from '@/components/primitives/StatusDot';
 import type { BotStatus, Meeting } from '@/lib/api';
@@ -169,7 +170,7 @@ export function BotStatusStrip({ meeting, liveUtteranceCount }: Props) {
       aria-label="Bot status"
     >
       <div className={mergeClasses(styles.beacon, isActive && styles.beaconActive)}>
-        🧭
+        <HelmsmanIcon size={32} tone="brand" spin={isActive} />
       </div>
 
       <div className={styles.body}>

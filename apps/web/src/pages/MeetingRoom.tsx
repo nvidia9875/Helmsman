@@ -19,6 +19,7 @@ import { GroupAttachment } from '@/components/GroupAttachment';
 import { InterventionFeed } from '@/components/InterventionFeed';
 import { LiveTranscript } from '@/components/LiveTranscript';
 import { MeetingPulse } from '@/components/MeetingPulse';
+import { MeetingSettings } from '@/components/MeetingSettings';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
 import { Sidebar } from '@/components/Sidebar';
 import { TeamsBotInvite } from '@/components/TeamsBotInvite';
@@ -234,7 +235,10 @@ export function MeetingRoom() {
     <div className={styles.page}>
       <div className={styles.main}>
         <header className={styles.header}>
-          <span className={styles.eyebrow}>MISSION CONTROL · session</span>
+          <span className={styles.eyebrow}>
+            MISSION CONTROL · session
+            {meeting.facilitator_name && ` · ${meeting.facilitator_name}`}
+          </span>
           <div className={styles.titleRow}>
             <Title2 as="h1" className={styles.title}>
               {meeting.goal || (
@@ -288,6 +292,8 @@ export function MeetingRoom() {
 
         {showOnboarding && <OnboardingSteps />}
         {needsDispatch && <TeamsBotInvite meeting={meeting} organizerId={organizerId} />}
+
+        <MeetingSettings meeting={meeting} organizerId={organizerId} />
 
         <section className={styles.docsPanel} aria-label="参考文書">
           <header className={styles.docsHeader}>

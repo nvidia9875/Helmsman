@@ -76,6 +76,30 @@ export interface Meeting {
   bot_status: BotStatus;
   bot_last_event_at: string | null;
   delivered_interventions: InterventionDelivery[];
+  // 追加設定 (2026-05-21)
+  facilitator_name: string | null;
+  steering_enabled: boolean;
+  timekeeper_alerts: TimekeeperAlert[];
+}
+
+export interface TimekeeperAlert {
+  id: string;
+  minutes_from_start: number;
+  message: string;
+  enabled: boolean;
+  fired: boolean;
+  fired_at: string | null;
+}
+
+export interface UpdateSettingsRequest {
+  facilitator_name?: string | null;
+  steering_enabled?: boolean;
+  timekeeper_alerts?: Array<{
+    id?: string | null;
+    minutes_from_start: number;
+    message: string;
+    enabled: boolean;
+  }>;
 }
 
 export interface BotTranscript {
@@ -161,6 +185,8 @@ export interface StartMeetingRequest {
   teams_meeting_url?: string | null;
   // 任意。指定するとグループ文書も AI に流れる
   group_id?: string | null;
+  // 任意。AI ファシリテーター名
+  facilitator_name?: string | null;
 }
 
 export interface TickRequest {
@@ -276,6 +302,14 @@ export const api = {
       {
         method: 'POST',
         body: JSON.stringify({ goal, ...(mode ? { mode } : {}) }),
+      },
+    ),
+  updateSettings: (id: string, organizerId: string, req: UpdateSettingsRequest) =>
+    request<Meeting>(
+      `/meetings/${id}/settings?organizer_id=${encodeURIComponent(organizerId)}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(req),
       },
     ),
   listDocuments: (id: string, organizerId: string) =>

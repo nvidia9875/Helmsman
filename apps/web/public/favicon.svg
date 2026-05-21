@@ -4,25 +4,45 @@
       <stop offset="0%" stop-color="#5b8def"/>
       <stop offset="100%" stop-color="#3661cf"/>
     </linearGradient>
-    <linearGradient id="needle" x1="32" y1="14" x2="32" y2="50" gradientUnits="userSpaceOnUse">
+    <radialGradient id="hub" cx="32" cy="32" r="6" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
-      <stop offset="48%" stop-color="#ffffff" stop-opacity="0.78"/>
-      <stop offset="52%" stop-color="#ffffff" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.18"/>
-    </linearGradient>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.55"/>
+    </radialGradient>
   </defs>
 
   <!-- rounded-square base -->
   <rect width="64" height="64" rx="14" ry="14" fill="url(#bg)"/>
 
-  <!-- subtle inner ring -->
-  <circle cx="32" cy="32" r="20" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.25" fill="none"/>
+  <!-- outer wheel ring -->
+  <circle cx="32" cy="32" r="20" stroke="#ffffff" stroke-opacity="0.92" stroke-width="2.5" fill="none"/>
 
-  <!-- compass needle (Helmsman 🧭) — slim diamond on a slight tilt -->
-  <g transform="rotate(28 32 32)">
-    <path d="M32 12 L36 32 L32 52 L28 32 Z" fill="url(#needle)"/>
+  <!-- inner wheel ring -->
+  <circle cx="32" cy="32" r="13" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1.5" fill="none"/>
+
+  <!-- 8 spokes (handles) extending outward -->
+  <g stroke="#ffffff" stroke-opacity="0.95" stroke-width="2.4" stroke-linecap="round">
+    <!-- vertical -->
+    <line x1="32" y1="6" x2="32" y2="14"/>
+    <line x1="32" y1="50" x2="32" y2="58"/>
+    <!-- horizontal -->
+    <line x1="6" y1="32" x2="14" y2="32"/>
+    <line x1="50" y1="32" x2="58" y2="32"/>
+    <!-- 45° diagonals -->
+    <line x1="13.5" y1="13.5" x2="19.0" y2="19.0"/>
+    <line x1="45.0" y1="45.0" x2="50.5" y2="50.5"/>
+    <line x1="50.5" y1="13.5" x2="45.0" y2="19.0"/>
+    <line x1="13.5" y1="50.5" x2="19.0" y2="45.0"/>
   </g>
 
-  <!-- center dot -->
-  <circle cx="32" cy="32" r="2.4" fill="#ffffff" fill-opacity="0.9"/>
+  <!-- inner spokes (connect inner ring to hub) -->
+  <g stroke="#ffffff" stroke-opacity="0.75" stroke-width="1.5" stroke-linecap="round">
+    <line x1="32" y1="19" x2="32" y2="45"/>
+    <line x1="19" y1="32" x2="45" y2="32"/>
+    <line x1="22.8" y1="22.8" x2="41.2" y2="41.2"/>
+    <line x1="41.2" y1="22.8" x2="22.8" y2="41.2"/>
+  </g>
+
+  <!-- center hub -->
+  <circle cx="32" cy="32" r="4.5" fill="url(#hub)"/>
+  <circle cx="32" cy="32" r="2" fill="#1a3a8c"/>
 </svg>

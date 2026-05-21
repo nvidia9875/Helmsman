@@ -8,6 +8,7 @@ import {
 } from '@fluentui/react-components';
 import { useEffect, useState } from 'react';
 
+import { HelmsmanIcon } from '@/components/primitives/HelmsmanIcon';
 import type { BotStatus, Meeting } from '@/lib/api';
 
 const useStyles = makeStyles({
@@ -195,7 +196,9 @@ export function BotMissionCard({ meeting, liveUtteranceCount }: Props) {
     >
       <div className={styles.haloWrap}>
         {isPulsing && <span className={styles.halo} />}
-        <span className={styles.icon}>🧭</span>
+        <span className={styles.icon}>
+          <HelmsmanIcon size={44} tone="brand" spin={isPulsing} />
+        </span>
       </div>
 
       <div className={styles.body}>

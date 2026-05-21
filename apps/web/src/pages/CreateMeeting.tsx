@@ -288,6 +288,7 @@ export function CreateMeeting() {
         parent_meeting_id: parentId,
         teams_meeting_url: teamsUrl.trim() || null,
         group_id: groupId === NO_GROUP ? null : groupId,
+        facilitator_name: facilitatorName.trim() || null,
       }),
     onSuccess: (meeting) => {
       if (facilitatorName) setName(facilitatorName);
