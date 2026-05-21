@@ -20,6 +20,7 @@ import { MeetingPulse } from '@/components/MeetingPulse';
 import { MeetingSettings } from '@/components/MeetingSettings';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
 import { ReportPanel } from '@/components/ReportPanel';
+import { RightNowStrip } from '@/components/RightNowStrip';
 import { SoloMicCard } from '@/components/SoloMicCard';
 import { CountUp } from '@/components/primitives/CountUp';
 import { Sidebar } from '@/components/Sidebar';
@@ -256,6 +257,8 @@ export function MeetingRoom() {
         </header>
 
         <BotStatusStrip meeting={meeting} liveUtteranceCount={liveUtteranceCount} />
+
+        <RightNowStrip meeting={meeting} transcript={transcript} />
 
         <KpiRow>
           <Kpi

@@ -7,6 +7,7 @@ import {
 import { useMemo } from 'react';
 
 import type { BotTranscript, Meeting, Topic, Utterance } from '@/lib/api';
+import { gini, giniBand, giniLabel } from '@/lib/gini';
 
 const useStyles = makeStyles({
   grid: {
@@ -169,6 +170,51 @@ const useStyles = makeStyles({
     color: 'var(--text-3)',
     fontFamily: 'var(--font-mono)',
     fontVariantNumeric: 'tabular-nums',
+  },
+  equityRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    padding: '6px 8px',
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '6px',
+    backgroundColor: 'var(--bg-2)',
+    marginBottom: '6px',
+  },
+  equityLabel: {
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
+  },
+  equityValue: {
+    fontSize: '12px',
+    fontFamily: 'var(--font-mono)',
+    fontVariantNumeric: 'tabular-nums',
+    color: 'var(--text-1)',
+    fontWeight: 600,
+  },
+  equityBand: {
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    padding: '2px 6px',
+    borderRadius: '4px',
+  },
+  equityBandBalanced: {
+    backgroundColor: 'rgba(43, 196, 138, 0.14)',
+    color: 'var(--success)',
+  },
+  equityBandMild: {
+    backgroundColor: 'rgba(245, 165, 36, 0.14)',
+    color: 'var(--warning)',
+  },
+  equityBandSkewed: {
+    backgroundColor: 'rgba(239, 79, 79, 0.14)',
+    color: 'var(--danger)',
   },
 });
 
@@ -336,6 +382,20 @@ export function MeetingPulse({ meeting, transcript }: Props) {
   );
   const maxUtter = participants[0]?.utteranceCount ?? 1;
 
+  const equity = useMemo(() => {
+    if (participants.length < 2) return null;
+    const value = gini(participants.map((p) => p.utteranceCount));
+    const band = giniBand(value);
+    return { value, band, label: giniLabel(band) };
+  }, [participants]);
+
+  const equityBandClass =
+    equity?.band === 'balanced'
+      ? styles.equityBandBalanced
+      : equity?.band === 'mild'
+        ? styles.equityBandMild
+        : styles.equityBandSkewed;
+
   return (
     <div className={styles.grid}>
       {/* Temperature + focus */}
@@ -442,6 +502,23 @@ export function MeetingPulse({ meeting, transcript }: Props) {
           </div>
         ) : (
           <div className={styles.participantList}>
+            {equity && (
+              <div
+                className={styles.equityRow}
+                aria-label="発言量の偏り (Gini 係数)"
+                title="0 = 完全平等, 1 = 1 人独占。Quiet Activator の発火閾値と整合"
+              >
+                <span className={styles.equityLabel}>Equity (Gini)</span>
+                <span className={styles.equityValue}>
+                  {equity.value.toFixed(2)}
+                </span>
+                <span
+                  className={`${styles.equityBand} ${equityBandClass}`}
+                >
+                  {equity.label}
+                </span>
+              </div>
+            )}
             {participants.slice(0, 6).map((p) => (
               <div key={p.speakerId}>
                 <div className={styles.participantRow}>

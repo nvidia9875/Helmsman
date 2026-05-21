@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { api } from '@/lib/api';
 import type { MeetingReport } from '@/lib/api';
+import { classifyLine, extractMemoPhrases } from '@/lib/augmented';
 
 const useStyles = makeStyles({
   root: {
@@ -87,11 +88,53 @@ const useStyles = makeStyles({
     marginBottom: '12px',
   },
   markdown: {
-    whiteSpace: 'pre-wrap',
     color: 'var(--text-1)',
     fontSize: '13px',
     lineHeight: 1.7,
     fontFamily: 'var(--font-sans, system-ui)',
+  },
+  legend: {
+    display: 'flex',
+    gap: '14px',
+    alignItems: 'center',
+    paddingTop: '8px',
+    marginTop: '4px',
+    borderTop: '1px dashed var(--border-hairline)',
+    color: 'var(--text-3)',
+    fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+  },
+  legendSwatch: {
+    display: 'inline-block',
+    width: '8px',
+    height: '8px',
+    borderRadius: '2px',
+    marginRight: '6px',
+    verticalAlign: 'middle',
+  },
+  swatchMemo: {
+    backgroundColor: 'var(--text-1)',
+  },
+  swatchHelmsman: {
+    backgroundColor: 'var(--text-3)',
+  },
+  line: {
+    display: 'block',
+    whiteSpace: 'pre-wrap',
+    minHeight: '1.7em',
+  },
+  lineMemo: {
+    color: 'var(--text-1)',
+  },
+  lineHelmsman: {
+    color: 'var(--text-2)',
+  },
+  lineQuote: {
+    color: 'var(--text-1)',
+    borderLeft: '2px solid var(--accent)',
+    paddingLeft: '8px',
+    marginLeft: '2px',
   },
   empty: {
     color: 'var(--text-3)',
@@ -303,7 +346,54 @@ export function ReportPanel({ meetingId, organizerId }: ReportPanelProps) {
               </span>
             ) : null}
           </div>
-          <pre className={styles.markdown}>{selected.report_markdown}</pre>
+          {(() => {
+            const memoText = selected.memo_snapshot ?? '';
+            const phrases = extractMemoPhrases(memoText);
+            const showLegend = phrases.length > 0;
+            const lines = selected.report_markdown.split('\n');
+            return (
+              <>
+                <div className={styles.markdown}>
+                  {lines.map((line, i) => {
+                    const kind = classifyLine(line, phrases);
+                    const klass =
+                      kind === 'memo'
+                        ? styles.lineMemo
+                        : kind === 'quote'
+                          ? styles.lineQuote
+                          : styles.lineHelmsman;
+                    return (
+                      <span
+                        key={i}
+                        className={`${styles.line} ${klass}`}
+                        data-line-kind={kind}
+                      >
+                        {line || ' '}
+                      </span>
+                    );
+                  })}
+                </div>
+                {showLegend && (
+                  <div className={styles.legend} aria-label="着色ガイド">
+                    <span>
+                      <span
+                        className={`${styles.legendSwatch} ${styles.swatchMemo}`}
+                        aria-hidden
+                      />
+                      あなたの memo 由来
+                    </span>
+                    <span>
+                      <span
+                        className={`${styles.legendSwatch} ${styles.swatchHelmsman}`}
+                        aria-hidden
+                      />
+                      Helmsman 構造化由来
+                    </span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </article>
       ) : (
         <p className={styles.empty}>
