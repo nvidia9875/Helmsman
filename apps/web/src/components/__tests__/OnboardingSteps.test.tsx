@@ -5,19 +5,20 @@ import { describe, expect, it } from 'vitest';
 import { OnboardingSteps } from '../OnboardingSteps';
 
 describe('OnboardingSteps', () => {
-  it('renders all 4 numbered steps inline', () => {
+  it('renders all 3 numbered steps inline', () => {
     render(
       <FluentProvider theme={webDarkTheme}>
         <OnboardingSteps />
       </FluentProvider>,
     );
-    expect(screen.getByText(/Teams で会議を作る/)).toBeInTheDocument();
-    expect(screen.getByText(/参加 URL をコピー/)).toBeInTheDocument();
-    expect(screen.getByText(/下に貼り付け/)).toBeInTheDocument();
-    expect(screen.getByText(/会議で話す/)).toBeInTheDocument();
+    expect(screen.getByText(/Teams カレンダーで会議を作る/)).toBeInTheDocument();
+    expect(screen.getByText(/参加 URL をコピーして下に貼る/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/派遣ボタンで Helmsman を会議に送り出す/),
+    ).toBeInTheDocument();
   });
 
-  it('numbers the steps 1-4', () => {
+  it('numbers the steps 1-3', () => {
     render(
       <FluentProvider theme={webDarkTheme}>
         <OnboardingSteps />
@@ -26,6 +27,5 @@ describe('OnboardingSteps', () => {
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
   });
 });
