@@ -164,7 +164,9 @@ export function BotStatusStrip({ meeting, liveUtteranceCount }: Props) {
       className={mergeClasses(
         styles.root,
         'scanlines',
+        'glass',
         isActive && styles.rootActive,
+        isActive && 'glow-active',
         isFailed && styles.rootFailed,
       )}
       aria-label="Bot status"

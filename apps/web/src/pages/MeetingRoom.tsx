@@ -21,6 +21,7 @@ import { LiveTranscript } from '@/components/LiveTranscript';
 import { MeetingPulse } from '@/components/MeetingPulse';
 import { MeetingSettings } from '@/components/MeetingSettings';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
+import { CountUp } from '@/components/primitives/CountUp';
 import { Sidebar } from '@/components/Sidebar';
 import { TeamsBotInvite } from '@/components/TeamsBotInvite';
 import { UtteranceConsole } from '@/components/UtteranceConsole';
@@ -266,26 +267,32 @@ export function MeetingRoom() {
           />
           <Kpi
             label="Utterances"
-            value={<span className="num-mono">{liveUtteranceCount}</span>}
+            value={<CountUp value={liveUtteranceCount} className="num-mono" />}
             hint={meeting.bot_status === 'in_call' ? 'live · STT' : 'idle'}
           />
           <Kpi
             label="Interventions"
-            value={<span className="num-mono">{meeting.delivered_interventions.length}</span>}
+            value={<CountUp value={meeting.delivered_interventions.length} className="num-mono" />}
             hint="L1 / L2 / L3 累計"
           />
           <Kpi
             label="Decisions"
             value={
               <span className="num-mono">
-                {decidedCount}/{meeting.topics.length}
+                <CountUp value={decidedCount} />/{meeting.topics.length}
               </span>
             }
             hint={meeting.topics.length === 0 ? 'no topics' : 'decided / total'}
           />
           <Kpi
             label="LLM cost"
-            value={<span className="num-mono">{fmtUsd(meeting.usage.total_cost_usd)}</span>}
+            value={
+              <CountUp
+                value={meeting.usage.total_cost_usd}
+                className="num-mono"
+                fmt={(v) => fmtUsd(v)}
+              />
+            }
             hint={`${fmtTokens(meeting.usage.total_tokens)} tok · ${meeting.usage.call_count} calls`}
           />
         </KpiRow>
@@ -295,7 +302,7 @@ export function MeetingRoom() {
 
         <MeetingSettings meeting={meeting} organizerId={organizerId} />
 
-        <section className={styles.docsPanel} aria-label="参考文書">
+        <section className={`${styles.docsPanel} glass`} aria-label="参考文書">
           <header className={styles.docsHeader}>
             <h2 className={styles.docsTitle}>
               参考文書 · この会議で AI が読みます
