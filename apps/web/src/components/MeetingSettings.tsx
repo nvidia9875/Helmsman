@@ -16,33 +16,72 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
-import { Add20Regular, Delete20Regular } from '@fluentui/react-icons';
+import {
+  Add20Regular,
+  ChevronDown20Regular,
+  ChevronUp20Regular,
+  Delete20Regular,
+  Settings20Regular,
+} from '@fluentui/react-icons';
 import { useState, useEffect } from 'react';
 import { api, type Meeting, type TimekeeperAlert } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
-    border: `1px solid ${tokens.colorNeutralStroke2}`,
-    borderRadius: '10px',
-    backgroundColor: tokens.colorNeutralBackground1,
-    padding: '16px 18px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
+    border: '1px solid var(--border-hairline)',
+    borderRadius: '12px',
+    backgroundColor: 'var(--bg-1)',
+    overflow: 'hidden',
+  },
+  rootExpanded: {
+    border: '1px solid var(--accent)',
   },
   header: {
     display: 'flex',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: '8px',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '14px 18px',
+    cursor: 'pointer',
+    userSelect: 'none',
+  },
+  headerIcon: {
+    color: 'var(--accent-cyan)',
+    display: 'flex',
   },
   title: {
     margin: 0,
     fontSize: '13px',
     fontWeight: 600,
-    letterSpacing: '0.04em',
+    letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: tokens.colorNeutralForeground3,
+    color: 'var(--text-1)',
+    flex: 1,
+  },
+  badge: {
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.06em',
+    color: 'var(--text-3)',
+    padding: '2px 8px',
+    border: '1px solid var(--border-default)',
+    borderRadius: '999px',
+    backgroundColor: 'var(--bg-2)',
+  },
+  badgeActive: {
+    color: 'var(--accent-cyan)',
+    border: '1px solid var(--accent-cyan)',
+    backgroundColor: 'var(--accent-soft)',
+  },
+  body: {
+    padding: '0 18px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+  },
+  saveRow: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    marginTop: '4px',
   },
   saveBtn: { minWidth: '70px' },
   row: {
@@ -124,6 +163,11 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
   const [alerts, setAlerts] = useState<DraftAlert[]>(
     meeting.timekeeper_alerts.map(toDraft),
   );
+  // 折りたたみ: 設定済 (alert あり or facilitator あり) なら開く、無ければ畳む
+  const hasAnySetting =
+    !!meeting.facilitator_name || meeting.timekeeper_alerts.length > 0 ||
+    !meeting.steering_enabled;
+  const [expanded, setExpanded] = useState(hasAnySetting);
 
   // meeting が外から再 fetch されたら sync (派遣直後など)
   useEffect(() => {
@@ -166,20 +210,37 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
   const removeAlert = (idx: number) =>
     setAlerts((prev) => prev.filter((_, i) => i !== idx));
 
+  // 状態を一行で要約 (closed 時のヒント)
+  const summary = [
+    meeting.facilitator_name && `名前: ${meeting.facilitator_name}`,
+    meeting.timekeeper_alerts.length > 0 && `Alert × ${meeting.timekeeper_alerts.length}`,
+    !meeting.steering_enabled && '方向確認 OFF',
+  ].filter(Boolean).join(' · ');
+
   return (
-    <section className={styles.root} aria-label="会議設定">
-      <div className={styles.header}>
+    <section
+      className={`${styles.root} ${expanded ? styles.rootExpanded : ''}`}
+      aria-label="会議設定"
+    >
+      <div
+        className={styles.header}
+        onClick={() => setExpanded((v) => !v)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setExpanded((v) => !v)}
+      >
+        <span className={styles.headerIcon}>
+          <Settings20Regular />
+        </span>
         <h2 className={styles.title}>会議設定</h2>
-        <Button
-          size="small"
-          appearance="primary"
-          className={styles.saveBtn}
-          disabled={!dirty || save.isPending}
-          onClick={() => save.mutate()}
-        >
-          {save.isPending ? <Spinner size="extra-tiny" /> : '保存'}
-        </Button>
+        <span className={`${styles.badge} ${hasAnySetting ? styles.badgeActive : ''}`}>
+          {hasAnySetting ? (summary || 'カスタム済') : '未設定'}
+        </span>
+        {expanded ? <ChevronUp20Regular /> : <ChevronDown20Regular />}
       </div>
+
+      {!expanded ? null : (
+      <div className={styles.body}>
 
       <Field label="AI ファシリテーター名">
         <Input
@@ -262,6 +323,20 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
           alert 追加
         </Button>
       </div>
+
+      <div className={styles.saveRow}>
+        <Button
+          size="medium"
+          appearance="primary"
+          className={styles.saveBtn}
+          disabled={!dirty || save.isPending}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? <Spinner size="extra-tiny" /> : dirty ? '変更を保存' : '保存済み'}
+        </Button>
+      </div>
+      </div>
+      )}
     </section>
   );
 }

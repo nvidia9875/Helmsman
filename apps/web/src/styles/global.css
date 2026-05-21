@@ -20,6 +20,9 @@
   --text-4: #3d3d4d;
   --accent: #5b8def;
   --accent-soft: rgba(91, 141, 239, 0.12);
+  --accent-glow: rgba(91, 141, 239, 0.45);
+  --accent-cyan: #5cf0f5;     /* AI / "energy" accent (補助) */
+  --accent-violet: #b07cff;   /* AI / "ライブ" 強調 */
   --success: #2bc48a;
   --warning: #f5a524;
   --danger: #ef4f4f;
@@ -37,10 +40,55 @@ body {
   background-color: var(--bg-0);
   color: var(--text-1);
   overscroll-behavior: none;
+  /* 二層構成: 静的グラデ + アニメ orb + 微細グリッド */
   background-image:
-    radial-gradient(ellipse at top, rgba(91, 141, 239, 0.04), transparent 60%),
-    radial-gradient(ellipse at bottom right, rgba(91, 141, 239, 0.02), transparent 50%);
+    /* gradient orbs (動かない、雰囲気) */
+    radial-gradient(ellipse 60% 50% at 18% 8%, rgba(91, 141, 239, 0.10), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 82% 92%, rgba(176, 124, 255, 0.07), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(92, 240, 245, 0.03), transparent 70%);
   background-attachment: fixed;
+  position: relative;
+}
+
+/* 細かいグリッドパターン (control room atmosphere) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.012) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, black 30%, transparent 80%);
+}
+
+/* AI energy: ゆっくり動く gradient orb (固定 1 個、目立たない程度) */
+body::after {
+  content: '';
+  position: fixed;
+  top: 10%;
+  left: 50%;
+  width: 600px;
+  height: 600px;
+  pointer-events: none;
+  z-index: 0;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(91, 141, 239, 0.08), transparent 60%);
+  animation: ambientDrift 24s ease-in-out infinite;
+  filter: blur(40px);
+}
+
+@keyframes ambientDrift {
+  0%, 100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 0.6; }
+  50% { transform: translateX(-30%) translateY(40px) scale(1.15); opacity: 1; }
+}
+
+/* page level wrapper を背景の上に */
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 * {
@@ -121,4 +169,53 @@ a {
   background: var(--bg-2);
   border-radius: 6px;
   animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+/* Glass effect — 主要 surface に被せる */
+.glass {
+  background: linear-gradient(180deg,
+    rgba(26, 28, 40, 0.78) 0%,
+    rgba(15, 16, 24, 0.78) 100%);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 24px 48px -24px rgba(0, 0, 0, 0.5);
+}
+
+/* Active 状態の glow (bot in_call 時など) */
+@keyframes activeGlow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow), 0 0 24px 4px var(--accent-glow); }
+  50% { box-shadow: 0 0 0 4px transparent, 0 0 32px 10px var(--accent-glow); }
+}
+.glow-active {
+  animation: activeGlow 2.4s ease-in-out infinite;
+}
+
+/* "AI typing" 風の breathing アニメ */
+@keyframes breathe {
+  0%, 100% { opacity: 0.65; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+.breathing {
+  animation: breathe 3.2s ease-in-out infinite;
+}
+
+/* 細い区切り線 (futuristic feel) */
+.divider-thin {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  margin: 16px 0;
+}
+
+/* Eyebrow text 強化 */
+.eyebrow-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  opacity: 0.85;
 }
