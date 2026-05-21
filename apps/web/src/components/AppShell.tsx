@@ -1,6 +1,7 @@
 import { Tooltip, makeStyles, mergeClasses } from '@fluentui/react-components';
 import {
   ArrowExit24Regular,
+  ChartMultiple24Regular,
   Folder24Regular,
   Home24Regular,
   Rocket24Regular,
@@ -243,9 +244,10 @@ interface NavEntry {
 }
 
 const NAV_PRIMARY: NavEntry[] = [
-  { to: '/', label: 'Overview', icon: <Home24Regular />, end: true },
+  { to: '/', label: 'Home', icon: <Home24Regular />, end: true },
   { to: '/new', label: 'Dispatch Bot', icon: <Rocket24Regular /> },
   { to: '/groups', label: 'Groups', icon: <Folder24Regular /> },
+  { to: '/insights', label: 'Insights', icon: <ChartMultiple24Regular /> },
 ];
 
 const NAV_FOOTER: NavEntry[] = [
@@ -264,7 +266,8 @@ interface Crumb {
 }
 
 function deriveCrumbs(pathname: string): Crumb[] {
-  if (pathname === '/') return [{ label: 'Overview', current: true }];
+  if (pathname === '/') return [{ label: 'Home', current: true }];
+  if (pathname === '/insights') return [{ label: 'Insights', current: true }];
   if (pathname === '/new') return [{ label: 'Dispatch', current: true }];
   if (pathname === '/groups') return [{ label: 'Groups', current: true }];
   if (pathname.startsWith('/groups/')) {

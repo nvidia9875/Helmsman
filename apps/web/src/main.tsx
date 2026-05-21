@@ -8,6 +8,7 @@ import { App } from './App';
 import { CreateMeeting } from './pages/CreateMeeting';
 import { GroupDetail } from './pages/GroupDetail';
 import { Groups } from './pages/Groups';
+import { Insights } from './pages/Insights';
 import { JoinMeeting } from './pages/JoinMeeting';
 import { Landing } from './pages/Landing';
 import { MeetingRoom } from './pages/MeetingRoom';
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Landing /> },
+      { path: 'insights', element: <Insights /> },
       { path: 'new', element: <CreateMeeting /> },
       { path: 'm/:meetingId', element: <MeetingRoom /> },
       { path: 'm/:meetingId/join', element: <JoinMeeting /> },
