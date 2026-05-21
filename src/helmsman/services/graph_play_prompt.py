@@ -28,9 +28,16 @@ from helmsman.services.tts import synthesize_pcm
 _tts_cache: dict[str, bytes] = {}
 
 
+# 末尾の silence padding (Microsoft が音声末尾を早めに完了報告する傾向への対策)
+TRAILING_SILENCE_MS = 1500
+
+
 def _pcm_to_wav(pcm: bytes, sample_rate: int = 16000) -> bytes:
-    """raw PCM (16-bit mono) を WAV ヘッダ付き bytes に。"""
-    data_size = len(pcm)
+    """raw PCM (16-bit mono) を WAV ヘッダ付き bytes に。末尾に silence padding 追加。"""
+    # 末尾に TRAILING_SILENCE_MS の silence を足す (Microsoft が末尾を切るのを防ぐ)
+    silence_bytes = sample_rate * 2 * TRAILING_SILENCE_MS // 1000
+    pcm_padded = pcm + (b"\x00" * silence_bytes)
+    data_size = len(pcm_padded)
     header = (
         b"RIFF"
         + struct.pack("<I", 36 + data_size)
@@ -45,7 +52,7 @@ def _pcm_to_wav(pcm: bytes, sample_rate: int = 16000) -> bytes:
         + b"data"
         + struct.pack("<I", data_size)
     )
-    return header + pcm
+    return header + pcm_padded
 
 
 def get_cached_tts(key: str) -> bytes | None:
