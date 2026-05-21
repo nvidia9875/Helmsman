@@ -90,6 +90,11 @@ apps/*.wav
 # Eval run outputs (can be large + may contain transcripts)
 eval_runs/
 
+# Local screenshot artifacts (from Playwright MCP browsing)
+.playwright-mcp/
+landing-*.png
+insights*.png
+
 # Internal planning / strategy docs (not for public)
 actions.md
 meeting-helmsman.md
