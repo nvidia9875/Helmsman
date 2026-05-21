@@ -71,6 +71,10 @@ var containers = [
     name: 'group_documents'
     partitionKey: '/group_id'
   }
+  {
+    name: 'meeting_reports'
+    partitionKey: '/meeting_id'
+  }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-11-15' = [for c in containers: {

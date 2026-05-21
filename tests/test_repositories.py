@@ -217,3 +217,73 @@ async def test_document_repo_get_returns_none_on_not_found(
     monkeypatch.setattr(repo, "_get_container", AsyncMock(return_value=container))
 
     assert await repo.get("missing", "m-1") is None
+
+
+# ===== MeetingReportRepository =====
+
+
+def _report(report_id: str = "r-1", meeting_id: str = "m-1") -> dict[str, Any]:
+    from helmsman.models.report import MeetingReport
+
+    return MeetingReport(
+        id=report_id,
+        meeting_id=meeting_id,
+        organizer_id="u-1",
+        report_markdown="# サマリ\n...",
+    ).model_dump(mode="json")
+
+
+@pytest.mark.asyncio
+async def test_report_repo_create_persists_to_correct_container(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from helmsman.models.report import MeetingReport
+    from helmsman.repositories.reports import MeetingReportRepository
+
+    container = _make_container_mock()
+    repo = MeetingReportRepository()
+    monkeypatch.setattr(repo, "_get_container", AsyncMock(return_value=container))
+
+    report = MeetingReport(
+        meeting_id="m-1",
+        organizer_id="u-1",
+        report_markdown="# ok",
+    )
+    await repo.create(report)
+
+    container.create_item.assert_awaited_once()
+    body = container.create_item.call_args.kwargs["body"]
+    assert body["meeting_id"] == "m-1"
+    assert body["report_markdown"] == "# ok"
+
+
+@pytest.mark.asyncio
+async def test_report_repo_list_by_meeting_returns_newest_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from helmsman.repositories.reports import MeetingReportRepository
+
+    rows = [_report("r-new", "m-1"), _report("r-old", "m-1")]
+    container = _make_container_mock(query_results=rows)
+    repo = MeetingReportRepository()
+    monkeypatch.setattr(repo, "_get_container", AsyncMock(return_value=container))
+
+    out = await repo.list_by_meeting("m-1", limit=10)
+
+    assert [r.id for r in out] == ["r-new", "r-old"]
+    args = container.query_items.call_args.kwargs
+    assert args["partition_key"] == "m-1"
+    assert "ORDER BY c.generated_at DESC" in args["query"]
+
+
+@pytest.mark.asyncio
+async def test_report_repo_latest_returns_none_when_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from helmsman.repositories.reports import MeetingReportRepository
+
+    container = _make_container_mock(query_results=[])
+    repo = MeetingReportRepository()
+    monkeypatch.setattr(repo, "_get_container", AsyncMock(return_value=container))
+
+    assert await repo.latest("m-1") is None

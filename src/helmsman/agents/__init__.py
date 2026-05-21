@@ -16,6 +16,7 @@ from helmsman.agents.decision_capture import DecisionCapture
 from helmsman.agents.dissent_surface import DissentSurface
 from helmsman.agents.goal_decomposer import GoalDecomposer
 from helmsman.agents.quiet_activator import QuietActivator
+from helmsman.agents.report_generator import MeetingReportGenerator
 from helmsman.agents.steering_agent import SteeringAgent
 from helmsman.agents.time_keeper import TimeKeeper
 
@@ -28,4 +29,5 @@ __all__ = [
     "QuietActivator",
     "DissentSurface",
     "InterventionArbiter",
+    "MeetingReportGenerator",
 ]

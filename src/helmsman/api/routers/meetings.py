@@ -14,6 +14,7 @@ from helmsman.agents import (
     DissentSurface,
     GoalDecomposer,
     InterventionArbiter,
+    MeetingReportGenerator,
     QuietActivator,
     SteeringAgent,
     TimeKeeper,
@@ -26,10 +27,12 @@ from helmsman.core.usage import MeetingUsage
 from helmsman.models.intervention import InterventionCandidate, InterventionDelivery
 from helmsman.models.meeting import Meeting, MeetingMode, MeetingState, UserIntensity
 from helmsman.models.participant import Participant
+from helmsman.models.report import MeetingReport
 from helmsman.models.topic import Topic
 from helmsman.models.utterance import Utterance
 from helmsman.repositories.documents import DocumentRepository
 from helmsman.repositories.meetings import MeetingRepository
+from helmsman.repositories.reports import MeetingReportRepository
 from helmsman.services.rag import (
     fetch_document_excerpts_simple,
     retrieve_excerpts_for_goal,
@@ -85,6 +88,39 @@ class TickResponse(BaseModel):
     meeting: Meeting
     candidates: list[InterventionCandidate]
     delivery: InterventionDelivery | None
+
+
+class GenerateReportRequest(BaseModel):
+    """会議終了後レポートの生成リクエスト。
+
+    template / memo はどちらも任意。両方空ならデフォルト構成で生成。
+    両方与えるとテンプレ章立て + メモを最優先情報源として尊重して合成。
+    """
+
+    template: str | None = Field(
+        default=None,
+        max_length=20_000,
+        description="ユーザー提供のレポートテンプレート (markdown / プレーンテキスト)",
+    )
+    memo: str | None = Field(
+        default=None,
+        max_length=20_000,
+        description="ユーザーが会議中に取った手書きメモ。最優先情報源として扱う",
+    )
+    utterances: list[Utterance] = Field(
+        default_factory=list,
+        description="発言ログ (任意)。空でも topics.evidence_quote だけで多くの場合充足。",
+    )
+
+
+class GenerateReportResponse(BaseModel):
+    id: str
+    meeting_id: str
+    report_markdown: str
+    generated_at: datetime
+    template_used: bool
+    memo_used: bool
+    utterances_included: int
 
 
 # ---------- helpers ----------
@@ -594,3 +630,105 @@ async def tick(
         candidates=candidates,
         delivery=delivery,
     )
+
+
+def get_report_repo() -> MeetingReportRepository:
+    return MeetingReportRepository()
+
+
+@router.post(
+    "/{meeting_id}/report",
+    response_model=GenerateReportResponse,
+)
+async def generate_report(
+    meeting_id: str,
+    organizer_id: str,
+    req: GenerateReportRequest,
+    repo: MeetingRepository = Depends(get_repo),
+    report_repo: MeetingReportRepository = Depends(get_report_repo),
+) -> GenerateReportResponse:
+    """会議終了後レポートを生成し、Cosmos meeting_reports に永続化する。
+
+    - template があれば章立て・トーンを縛る
+    - memo があれば最優先情報源として扱う (Helmsman の構造化結果より優先)
+    - utterances が渡されれば引用の粒度が上がる (任意)
+
+    1 会議で複数回呼ぶと履歴として全て残る。最新は GET /reports/latest で取れる。
+    """
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting:
+        raise HTTPException(404, "meeting not found")
+
+    generator = MeetingReportGenerator()
+    report_md = await generator.run(
+        meeting,
+        template=req.template,
+        memo=req.memo,
+        utterances=req.utterances or None,
+    )
+
+    # コスト集計に積み上げ
+    _accumulate_usage(meeting.usage, [generator])
+    await repo.upsert(meeting)
+
+    report = MeetingReport(
+        meeting_id=meeting.id,
+        organizer_id=organizer_id,
+        report_markdown=report_md,
+        template_used=bool(req.template and req.template.strip()),
+        memo_used=bool(req.memo and req.memo.strip()),
+        utterances_included=len(req.utterances or []),
+        template_snapshot=req.template,
+        memo_snapshot=req.memo,
+        generator_model=generator.deployment,
+        usage=generator.last_usage,
+    )
+    await report_repo.create(report)
+
+    return GenerateReportResponse(
+        id=report.id,
+        meeting_id=meeting.id,
+        report_markdown=report_md,
+        generated_at=report.generated_at,
+        template_used=report.template_used,
+        memo_used=report.memo_used,
+        utterances_included=report.utterances_included,
+    )
+
+
+@router.get(
+    "/{meeting_id}/reports",
+    response_model=list[MeetingReport],
+)
+async def list_reports(
+    meeting_id: str,
+    organizer_id: str,
+    limit: int = 20,
+    repo: MeetingRepository = Depends(get_repo),
+    report_repo: MeetingReportRepository = Depends(get_report_repo),
+) -> list[MeetingReport]:
+    """会議に紐付くレポート履歴を新しい順に返す。"""
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting:
+        raise HTTPException(404, "meeting not found")
+    return await report_repo.list_by_meeting(meeting_id, limit=limit)
+
+
+@router.get(
+    "/{meeting_id}/reports/latest",
+    response_model=MeetingReport,
+)
+async def get_latest_report(
+    meeting_id: str,
+    organizer_id: str,
+    repo: MeetingRepository = Depends(get_repo),
+    report_repo: MeetingReportRepository = Depends(get_report_repo),
+) -> MeetingReport:
+    """最新レポート 1 件を返す。無ければ 404。"""
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting:
+        raise HTTPException(404, "meeting not found")
+    latest = await report_repo.latest(meeting_id)
+    if latest is None:
+        raise HTTPException(404, "no report generated yet")
+    return latest

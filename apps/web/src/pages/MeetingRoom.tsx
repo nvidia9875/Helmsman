@@ -19,6 +19,7 @@ import { LiveTranscript } from '@/components/LiveTranscript';
 import { MeetingPulse } from '@/components/MeetingPulse';
 import { MeetingSettings } from '@/components/MeetingSettings';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
+import { ReportPanel } from '@/components/ReportPanel';
 import { SoloMicCard } from '@/components/SoloMicCard';
 import { CountUp } from '@/components/primitives/CountUp';
 import { Sidebar } from '@/components/Sidebar';
@@ -333,7 +334,13 @@ export function MeetingRoom() {
         </div>
 
         <div className={styles.tools}>
-          <Accordion collapsible multiple>
+          <Accordion collapsible multiple defaultOpenItems={['report']}>
+            <AccordionItem value="report">
+              <AccordionHeader>会議後レポート · テンプレ + メモから生成</AccordionHeader>
+              <AccordionPanel>
+                <ReportPanel meetingId={meeting.id} organizerId={organizerId} />
+              </AccordionPanel>
+            </AccordionItem>
             <AccordionItem value="cost">
               <AccordionHeader>LLM コスト詳細</AccordionHeader>
               <AccordionPanel>

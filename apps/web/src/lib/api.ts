@@ -251,6 +251,46 @@ export interface DownloadResponse {
   expires_in_seconds: number;
 }
 
+export interface UsageRecord {
+  agent_name: string;
+  model_deployment: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface MeetingReport {
+  id: string;
+  meeting_id: string;
+  organizer_id: string;
+  report_markdown: string;
+  template_used: boolean;
+  memo_used: boolean;
+  utterances_included: number;
+  template_snapshot: string | null;
+  memo_snapshot: string | null;
+  generated_at: string;
+  generator_agent: string;
+  generator_model: string | null;
+  usage: UsageRecord | null;
+}
+
+export interface GenerateReportRequest {
+  template?: string | null;
+  memo?: string | null;
+  utterances?: Utterance[];
+}
+
+export interface GenerateReportResponse {
+  id: string;
+  meeting_id: string;
+  report_markdown: string;
+  generated_at: string;
+  template_used: boolean;
+  memo_used: boolean;
+  utterances_included: number;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
@@ -472,5 +512,24 @@ export const api = {
   getBotTranscript: (id: string, organizerId: string, limit = 50) =>
     request<BotTranscript>(
       `/meetings/${id}/bot/transcript?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,
+    ),
+
+  // ---------- Reports ----------
+  generateReport: (
+    meetingId: string,
+    organizerId: string,
+    req: GenerateReportRequest,
+  ) =>
+    request<GenerateReportResponse>(
+      `/meetings/${meetingId}/report?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST', body: JSON.stringify(req) },
+    ),
+  listReports: (meetingId: string, organizerId: string, limit = 20) =>
+    request<MeetingReport[]>(
+      `/meetings/${meetingId}/reports?organizer_id=${encodeURIComponent(organizerId)}&limit=${limit}`,
+    ),
+  getLatestReport: (meetingId: string, organizerId: string) =>
+    request<MeetingReport>(
+      `/meetings/${meetingId}/reports/latest?organizer_id=${encodeURIComponent(organizerId)}`,
     ),
 };
