@@ -109,19 +109,38 @@
 > 3. リアルタイムで topic state が discussing → decided に遷移 (10 秒)
 > 4. 終了 → 構造化決定 10 件 (15 秒)
 
+### Report scene (20 秒) — 2026-05-21 追加
+
+> 「会議の後はこう変わる」
+> (画面遷移: MeetingRoom → Accordion `会議後レポート · テンプレ + メモから生成` を開く)
+>
+> 1. 自社の議事録テンプレートを左の textarea に貼る (3 秒)
+> 2. 会議中の手書きメモを右の textarea に貼る (3 秒、ペースト)
+> 3. 「レポートを生成」クリック → spinner → ~6 秒で markdown プレビュー (8 秒)
+> 4. ハイライト: テンプレの `{{decisions}}` が決定文に置換、メモの「KPI 議論不十分」が「⚠️ 事実関係要確認」として注記される (6 秒)
+
+**ナレーション台本**:
+> 「会議が終わったら、いつも使ってる議事録テンプレートを貼って、会議中に取ったメモを貼って、生成ボタン。
+>  Helmsman は、決定事項を `evidence_quote` 付きで埋め込み、メモと食い違うところは『要確認』と明示。
+>  3 秒で、いつもの議事録フォーマットで、6 円分のコストで仕上がる」
+
 ### Numbers (15 秒)
 > **0 → 10 件**: 構造化された決定
 > **0/5 → 5/5**: Topic decided
-> **$0.03 / 会議**: LLM コスト
+> **$0.03 / 会議**: LLM コスト (8 agents 並列分)
+> **$0.01 / レポート**: 会議後レポート生成 (gpt-5.4, テンプレ+メモ取込)
+> **= 6 円 / 会議**: 介入 + 構造化 + レポートまで全部
 
 ### CTA (10 秒)
-> 「Helmsman を Teams 会議に派遣 — `https://helmsman.jp` (※デモ URL)」
+> 「Helmsman を Teams 会議に派遣 — `https://kind-glacier-0122f6400.7.azurestaticapps.net`」
 
 ---
 
 ## 出典
 
-- 計測コード: `scripts/eval_offline.py`
+- 計測コード: `scripts/eval_offline.py` (会議介入)
+- 計測コード: `scripts/smoke_report.py` (会議後レポート、本番 Azure OpenAI 3 ケース)
+- 計測コード: `scripts/smoke_rag.py` (本番 AI Search vector pipeline)
 - 元データ: `eval_runs/2026-05-17-*` (5 ラン)
 - 詳細解説: `docs/eval-results.md`
 - ROI 計算根拠: `README.md` のビジネスインパクト section (B-1)

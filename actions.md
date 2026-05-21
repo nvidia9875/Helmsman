@@ -759,7 +759,7 @@ Total: ~141 / ~158 完了 (~89%)
 - [ ] **TB-E5** ハッカソン終了後の片付け (~6/18 以降): `rg-helmsman-teams` 削除、Teams Essentials は trial 自然失効で OK
 - [ ] **#16** Business Basic (no Teams) 誤購入の最終請求書チェック (~6/19 まで)
 
-**P1 ✅ 完了 (2026-05-21)**:
+**P1 ✅ 完了 (2026-05-21 午前)**:
 - [x] **TB-M.F1-F2** ACS 関連の死コード削除 + pyproject.toml から `azure-communication-callautomation` + `azure-communication-identity` 削除
 - [x] **TB-O.D6-D10** UI 追加磨き込み: Onboarding hero 刷新 / BotStatusStrip beacon の cyan 強脈動 glow / Sidebar の ON AIR + gradient progress bar / 全パネル glass 統一 / page stagger アニメ
 - [x] **TB-N.A** SoloMicCard 新規 + 旧 UtteranceConsole Accordion 削除 (Web Speech をファーストクラス化)
@@ -767,16 +767,31 @@ Total: ~141 / ~158 完了 (~89%)
 - [x] **B-3** デモ動画用ビフォアアフター数値 — `docs/demo-numbers.md` 新規 (0→10 件 / 0/5→5/5 / $0.03/会議 + 撮影台本テンプレ)
 - [x] **F-4/F-5** ソロ評価実験 — 既に 5/17 完了済 (5-way 比較、cheap モード優位性発見)
 
+**P1 ✅ 完了 (2026-05-21 午後)** — Report 機能 + RAG smoke + Zenn 記事:
+- [x] **REPORT-1** `MeetingReportGenerator` agent 新規 (gpt-5.4 HIGH) — テンプレ + メモ + Helmsman 構造化結果から markdown レポート生成。情報源優先度をプロンプトで明示 (memo > structured > raw)、矛盾時は `⚠️ 事実関係要確認` 明示。`src/helmsman/agents/report_generator.py`
+- [x] **REPORT-2** `MeetingReport` モデル + Cosmos `meeting_reports` repo 永続化 (partition key `/meeting_id`、template_snapshot / memo_snapshot / usage も保存)。Cosmos container 実機作成済
+- [x] **REPORT-3** API 3 endpoint 追加 (`POST /meetings/{id}/report` / `GET /reports` / `GET /reports/latest`)。本番 OpenAPI で 3 つとも反映確認済
+- [x] **REPORT-4** `ReportPanel` UI 新規 (`apps/web/src/components/ReportPanel.tsx`): template/memo textarea + 生成ボタン + プレビュー + 履歴切替。`MeetingRoom` の Accordion に defaultOpen で配置
+- [x] **REPORT-5** テスト追加 — pytest 89 件 pass (新規 +9: ReportGenerator 6 + reports repo 3)、vitest 9 件 pass (新規 +3 ReportPanel + OnboardingSteps 旧 4 step → 3 step 修正)
+- [x] **REPORT-6** 本番 LLM smoke 検証 — 3 ケース (default / template only / template+memo) すべて成功。default 10.8s / 1247-in / 859-out / ~$0.014、template 6.3s / $0.009、template+memo 6.8s / $0.010 (gpt-5.4)。`scripts/smoke_report.py`
+- [x] **RAG-S1** 本番 Azure AI Search の end-to-end smoke (`scripts/smoke_rag.py`): ensure_index 711ms / embed 1162ms (466 tok, 1536 dim) / upsert 724ms / vector search cold 648-1549ms warm ~700ms / cosine 0.61-0.72 (3 自然文 query すべて hit)
+- [x] **RAG-S2** 🔴 本番 bug 発見 + 修正: Azure OpenAI に `text-embedding-3-small` deployment 自体が **未作成** だった (RAG コード/Search index/ingest 経路は全部書かれてたが silent skip 設計のため 0 件で気付けなかった)。smoke で 404 を踏んで初めて発覚 → `az cognitiveservices account deployment create` で投入。Layer A (eval `--doc-text`) と Layer B (本番 vector pipeline) の 2 段検証体制に整理
+- [x] **Z-1/Z-2** Zenn 記事下書き完成 — `docs/zenn-article-draft.md` (37k chars / 16 h2 sections / Mermaid 5 図 / プロンプト工夫 5 種 / ADR 5 件 / Q&A 5 件)。§3.8 (Report agent プロンプト) / §5 (AI が代弁する構造、4 失敗パターン) / §6.1-6.9 (実装ハイライト 9 連) / §7.3 (RAG 2 段検証) / §11 (Report 機能独立章) 含む
+- [x] **CI-FIX-1** `package-lock.json` 同期漏れ (b073cf1 で teams-js 追加時に lock 更新忘れ) — `npm install --package-lock-only` で再生成
+- [x] **CI-FIX-2** `OnboardingSteps.test.tsx` を 4065336 後の現状 3 step に合わせ更新 (4 step 期待で常時 failure だった)
+- [x] **CI-GREEN** `5903cbe` で API / Web / Tests 全 workflow green、本番デプロイ完了
+
 **P2 (Time permitting)**:
 - [ ] **TB-N.B4** Tab 内 chrome 簡略化 (`looksLikeTeamsHost()` 検出時)
-- [ ] **TB-C4** Barge-in: 8.5.M の PlayPrompt は単発再生なので原理的に不要 (削除候補)
-- [ ] **POS-3** Zenn 記事 / デモ動画に「Facilitator との差別化」スライド
-- [ ] **Z-1〜Z-4** Zenn 記事執筆
+- [x] ~~**TB-C4** Barge-in~~ — 8.5.M の単発 PlayPrompt 設計では概念的に不要。grep で残コード無し (`recording_loop.py:87` の `bargeInAllowed: True` は **Graph 録音 API の silent prompt 用パラメータ**で別概念、正しく True で OK)。クローズ。
+- [ ] **POS-3** Zenn 記事 / デモ動画に「Facilitator との差別化」スライド (記事 §8 にはあり、動画スライド化のみ)
+- [ ] **Z-3/Z-4** Zenn 記事推敲 (下書き完成済、YouTube URL 差し替え + typo / リンク確認)
 - [ ] **POS-4** Semantic Kernel 移行 (提出後 Phase F)
 
 **今すぐ着手可能 (ブロッカー無し)**:
-- Zenn 記事の章立て + 技術解説の下書き
-- D-1〜D-4 デモ動画台本ブラッシュアップ (素材は `docs/demo-numbers.md` に揃った)
+- D-1〜D-4 デモ動画台本ブラッシュアップ (Report scene を `docs/demo-numbers.md` に追記)
+- Zenn 記事の最終推敲 + YouTube 動画 URL 差し替え (2 箇所 `REPLACE_ME`)
+- README.md に Report 機能反映
 
 ---
 

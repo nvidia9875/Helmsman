@@ -6,8 +6,10 @@ import {
   Rocket24Regular,
   Settings24Regular,
 } from '@fluentui/react-icons';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+
+import { getTeamsContext, looksLikeTeamsHost } from '@/lib/teams';
 
 const NAV_WIDTH = '64px';
 const TOPBAR_HEIGHT = '52px';
@@ -218,6 +220,18 @@ const useStyles = makeStyles({
     color: 'var(--accent)',
     backgroundColor: 'var(--bg-2)',
   },
+  // Teams Tab iframe 内で動いてる時の最小限 chrome (host 側に既に nav/header があるので
+  // 自前の sidebar + topbar は省く)
+  teamsRoot: {
+    minHeight: '100vh',
+    backgroundColor: 'var(--bg-0)',
+    color: 'var(--text-1)',
+  },
+  teamsContent: {
+    minHeight: '100vh',
+    overflowY: 'auto',
+    minWidth: 0,
+  },
 });
 
 interface NavEntry {
@@ -306,6 +320,29 @@ export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const crumbs = deriveCrumbs(location.pathname);
+
+  // Teams Tab 内検出 — UA / iframe 早期判定 + SDK の context で確定。
+  // 早期判定の段階で hide することで CLS なし。SDK context 取得後に確定値で上書き。
+  const [inTeamsTab, setInTeamsTab] = useState<boolean>(() => looksLikeTeamsHost());
+  useEffect(() => {
+    let cancelled = false;
+    getTeamsContext().then((ctx) => {
+      if (!cancelled) setInTeamsTab(ctx !== null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (inTeamsTab) {
+    // Teams ホスト側に既に sidebar + topbar が居るので chrome を全部省く。
+    // content だけ最大化して埋め込み体験を整える。
+    return (
+      <div className={styles.teamsRoot}>
+        <main className={styles.teamsContent}>{children}</main>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.root}>
