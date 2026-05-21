@@ -462,7 +462,7 @@ Python Container App (helmsman-dev-api)
 **Phase N.B: Teams Tab manifest (Day 7-8: 5/26-5/27)**
 - [ ] **TB-N.B1** `apps/teams-app/manifest.json` を更新: `configurableTabs` に Helmsman Web URL を設定 (会議内 Tab)
 - [ ] **TB-N.B2** `validDomains` に `kind-glacier-0122f6400.7.azurestaticapps.net` 追加
-- [ ] **TB-N.B3** Teams JavaScript SDK (`@microsoft/teams-js`) を Helmsman Web に組み込み — Tab context 取得 (meeting ID, user ID 等)
+- [x] **TB-N.B3** Teams JavaScript SDK (`@microsoft/teams-js@2.53.0`) を Helmsman Web に組み込み — `lib/teams.ts` で `getTeamsContext()` + `looksLikeTeamsHost()`、`/teams-config` ルート (TeamsConfig.tsx) で `pages.config.registerOnSaveHandler` 配線済
 - [ ] **TB-N.B4** Tab 検出時の UI 切替: Tab 内表示なら chrome 簡略化、外部表示なら通常 UI
 
 **Phase N.C: Sideload + E2E test (Day 8: 5/27)**

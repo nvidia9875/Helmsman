@@ -11,6 +11,7 @@ import { Groups } from './pages/Groups';
 import { JoinMeeting } from './pages/JoinMeeting';
 import { Landing } from './pages/Landing';
 import { MeetingRoom } from './pages/MeetingRoom';
+import { TeamsConfig } from './pages/TeamsConfig';
 import './styles/global.css';
 import { helmsmanDarkTheme } from './styles/theme';
 
@@ -36,6 +37,8 @@ const router = createBrowserRouter([
       { path: 'groups/:groupId', element: <GroupDetail /> },
     ],
   },
+  // Teams Tab configuration ページは AppShell ナビ無しで描画 (iframe 内に表示)
+  { path: '/teams-config', element: <TeamsConfig /> },
 ]);
 
 createRoot(document.getElementById('root')!).render(
