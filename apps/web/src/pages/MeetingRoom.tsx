@@ -3,12 +3,10 @@ import {
   AccordionHeader,
   AccordionItem,
   AccordionPanel,
-  Body1,
   Title2,
   makeStyles,
-  tokens,
 } from '@fluentui/react-components';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 import { BotStatusStrip } from '@/components/BotStatusStrip';
@@ -21,10 +19,10 @@ import { LiveTranscript } from '@/components/LiveTranscript';
 import { MeetingPulse } from '@/components/MeetingPulse';
 import { MeetingSettings } from '@/components/MeetingSettings';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
+import { SoloMicCard } from '@/components/SoloMicCard';
 import { CountUp } from '@/components/primitives/CountUp';
 import { Sidebar } from '@/components/Sidebar';
 import { TeamsBotInvite } from '@/components/TeamsBotInvite';
-import { UtteranceConsole } from '@/components/UtteranceConsole';
 import { Kpi, KpiRow } from '@/components/primitives/Kpi';
 import { Skeleton } from '@/components/primitives/Skeleton';
 import { api } from '@/lib/api';
@@ -191,7 +189,6 @@ export function MeetingRoom() {
   const { meetingId } = useParams<{ meetingId: string }>();
   const [searchParams] = useSearchParams();
   const { userId } = useIdentity();
-  const queryClient = useQueryClient();
   const organizerId = searchParams.get('organizer_id') ?? userId;
 
   const { data: meeting, isLoading } = useQuery({
@@ -299,6 +296,7 @@ export function MeetingRoom() {
 
         {showOnboarding && <OnboardingSteps />}
         {needsDispatch && <TeamsBotInvite meeting={meeting} organizerId={organizerId} />}
+        {needsDispatch && <SoloMicCard meeting={meeting} organizerId={organizerId} />}
 
         <MeetingSettings meeting={meeting} organizerId={organizerId} />
 
@@ -340,23 +338,6 @@ export function MeetingRoom() {
               <AccordionHeader>LLM コスト詳細</AccordionHeader>
               <AccordionPanel>
                 <CostCard usage={meeting.usage} />
-              </AccordionPanel>
-            </AccordionItem>
-            <AccordionItem value="dev-stt">
-              <AccordionHeader>Browser STT (dev fallback)</AccordionHeader>
-              <AccordionPanel>
-                <Body1 style={{ color: tokens.colorNeutralForeground3, marginBottom: 8 }}>
-                  Teams Bot を使わず手動で発言を入れる時のみ。
-                </Body1>
-                <UtteranceConsole
-                  meeting={meeting}
-                  organizerId={organizerId}
-                  onTickComplete={() =>
-                    queryClient.invalidateQueries({
-                      queryKey: ['meeting', meetingId, organizerId],
-                    })
-                  }
-                />
               </AccordionPanel>
             </AccordionItem>
           </Accordion>
