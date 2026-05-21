@@ -311,33 +311,6 @@ wheels = [
 ]
 
 [[package]]
-name = "azure-communication-callautomation"
-version = "1.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "isodate" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ab/0a/92abae9910a3fc6b52b0e900728dc25b0ba230934b243125a5c775e53f0d/azure_communication_callautomation-1.5.0.tar.gz", hash = "sha256:0ecce73791f061a1b6d351ff151a71ee1a9ddd4cf64fd0725cf15c94f6186779", size = 145748, upload-time = "2025-09-10T20:26:24.693Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/06/a4/26654151bccba19f1d192d7540d8a209993aa363bd08a01ed1e7d32af4aa/azure_communication_callautomation-1.5.0-py3-none-any.whl", hash = "sha256:4d0926c1b3dc1650adf0b249ef7c5d1cfe0c01b98acef978470ce429bcddc41d", size = 142661, upload-time = "2025-09-10T20:26:25.912Z" },
-]
-
-[[package]]
-name = "azure-communication-identity"
-version = "1.5.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "azure-core" },
-    { name = "msrest" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/9e/6cbc94f5c01406083960bea219ee9d9313ad925c894b6b5df3df1d3d51a0/azure-communication-identity-1.5.0.tar.gz", hash = "sha256:d3186403395b78066ff30313ac119693694d2da9e0c76e9ac70eaa590dcb29e8", size = 66685, upload-time = "2024-02-15T08:20:04.324Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/21/9266411a36a182e235ad9ed338a071e417d01d6804747ae959c2232399b0/azure_communication_identity-1.5.0-py3-none-any.whl", hash = "sha256:dd6dc7aafc9f3707ffbbf40a45f2b4ccb5dc67f4d1545e74b083f83f9afa7a1a", size = 65601, upload-time = "2024-02-15T08:20:06.825Z" },
-]
-
-[[package]]
 name = "azure-core"
 version = "1.41.0"
 source = { registry = "https://pypi.org/simple" }
@@ -873,8 +846,6 @@ dependencies = [
     { name = "azure-ai-documentintelligence" },
     { name = "azure-ai-textanalytics" },
     { name = "azure-cognitiveservices-speech" },
-    { name = "azure-communication-callautomation" },
-    { name = "azure-communication-identity" },
     { name = "azure-cosmos" },
     { name = "azure-identity" },
     { name = "azure-mgmt-resource" },
@@ -914,8 +885,6 @@ requires-dist = [
     { name = "azure-ai-documentintelligence", specifier = ">=1.0.0" },
     { name = "azure-ai-textanalytics", specifier = ">=5.4.0" },
     { name = "azure-cognitiveservices-speech", specifier = ">=1.50.0" },
-    { name = "azure-communication-callautomation", specifier = ">=1.4.0" },
-    { name = "azure-communication-identity", specifier = ">=1.5.0" },
     { name = "azure-cosmos", specifier = ">=4.15.0" },
     { name = "azure-identity", specifier = ">=1.25.3" },
     { name = "azure-mgmt-resource", specifier = ">=25.0.0" },

@@ -24,9 +24,8 @@ dependencies = [
     "azure-storage-blob>=12.29.0",
     "azure-mgmt-resource>=25.0.0",
 
-    # Teams bot — ACS Call Automation で会議に参加 + STT/TTS in/out
-    "azure-communication-callautomation>=1.4.0",
-    "azure-communication-identity>=1.5.0",
+    # Teams bot — Microsoft Graph Communications API で会議参加 + recordResponse/playPrompt
+    # (ACS Call Automation は TeamsMeetingLinkLocator が Python SDK 非対応のため不使用)
 
     # Microsoft Graph
     "msgraph-sdk>=1.57.0",

@@ -110,7 +110,8 @@ def test_openapi_lists_dispatch_and_bot_routes(client: TestClient) -> None:
     assert "/meetings/{meeting_id}/bot/speak" in paths
     assert "/meetings/{meeting_id}/bot/transcript" in paths
     assert "/meetings/usage/summary" in paths
-    assert "/bot/callback" in paths
+    # /api/calling は Graph Communications webhook (旧 ACS /bot/callback の代替)
+    assert "/api/calling" in paths
 
 
 # ===== Dispatch flow =====
