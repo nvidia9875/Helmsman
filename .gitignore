@@ -16,6 +16,9 @@ dist/
 build/
 *.egg-info/
 
+# Teams sideload package (生成物)
+apps/teams-app/helmsman-app.zip
+
 # Node
 node_modules/
 .npm
