@@ -18,6 +18,7 @@ import { InterventionFeed } from '@/components/InterventionFeed';
 import { LiveTranscript } from '@/components/LiveTranscript';
 import { MeetingPulse } from '@/components/MeetingPulse';
 import { MeetingSettings } from '@/components/MeetingSettings';
+import { MemoryEchoCard } from '@/components/memory/MemoryEchoCard';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
 import { ReportPanel } from '@/components/ReportPanel';
 import { RightNowStrip } from '@/components/RightNowStrip';
@@ -330,6 +331,8 @@ export function MeetingRoom() {
         <GroupAttachment meeting={meeting} organizerId={organizerId} />
 
         <MeetingPulse meeting={meeting} transcript={transcript} />
+
+        <MemoryEchoCard meeting={meeting} organizerId={organizerId} />
 
         <div className={styles.feedGrid}>
           <InterventionFeed meeting={meeting} organizerId={organizerId} />

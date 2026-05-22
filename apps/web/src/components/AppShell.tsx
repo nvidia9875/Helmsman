@@ -3,6 +3,7 @@ import {
   ArrowExit24Regular,
   ChartMultiple24Regular,
   Folder24Regular,
+  History24Regular,
   Home24Regular,
   Rocket24Regular,
   Settings24Regular,
@@ -247,6 +248,7 @@ const NAV_PRIMARY: NavEntry[] = [
   { to: '/', label: 'Home', icon: <Home24Regular />, end: true },
   { to: '/new', label: 'Dispatch Bot', icon: <Rocket24Regular /> },
   { to: '/groups', label: 'Groups', icon: <Folder24Regular /> },
+  { to: '/history', label: 'Memory · History', icon: <History24Regular /> },
   { to: '/insights', label: 'Insights', icon: <ChartMultiple24Regular /> },
 ];
 
@@ -268,6 +270,7 @@ interface Crumb {
 function deriveCrumbs(pathname: string): Crumb[] {
   if (pathname === '/') return [{ label: 'Home', current: true }];
   if (pathname === '/insights') return [{ label: 'Insights', current: true }];
+  if (pathname === '/history') return [{ label: 'Memory · History', current: true }];
   if (pathname === '/new') return [{ label: 'Dispatch', current: true }];
   if (pathname === '/groups') return [{ label: 'Groups', current: true }];
   if (pathname.startsWith('/groups/')) {

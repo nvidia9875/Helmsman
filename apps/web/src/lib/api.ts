@@ -80,6 +80,38 @@ export interface Meeting {
   facilitator_name: string | null;
   steering_enabled: boolean;
   timekeeper_alerts: TimekeeperAlert[];
+  // Phase 7 (会議横断記憶): 当会議で MemoryRetriever が surface 済の過去 decision id
+  surfaced_decision_ids: string[];
+}
+
+// ---------- Phase 7: Decisions (会議横断記憶) ----------
+
+export interface Decision {
+  id: string;
+  meeting_id: string;
+  topic_id: string;
+  topic_name: string;
+  decision_text: string;
+  owner: string;
+  deadline: string;
+  evidence_quote: string | null;
+  series_id: string | null;
+  group_id: string | null;
+  confidence: number;
+  captured_at: string;
+}
+
+export interface DecisionSearchHit extends Decision {
+  score: number;
+}
+
+export interface DecisionSearchRequest {
+  query: string;
+  organizer_id: string;
+  series_id?: string | null;
+  group_id?: string | null;
+  top_k?: number;
+  within_days?: number;
 }
 
 export interface TimekeeperAlert {
@@ -532,4 +564,30 @@ export const api = {
     request<MeetingReport>(
       `/meetings/${meetingId}/reports/latest?organizer_id=${encodeURIComponent(organizerId)}`,
     ),
+
+  // ---------- Phase 7: Decisions (会議横断記憶) ----------
+  listDecisions: (
+    organizerId: string,
+    opts?: { seriesId?: string | null; groupId?: string | null; withinDays?: number; limit?: number },
+  ) => {
+    const params = new URLSearchParams({ organizer_id: organizerId });
+    if (opts?.seriesId) params.set('series_id', opts.seriesId);
+    if (opts?.groupId) params.set('group_id', opts.groupId);
+    if (opts?.withinDays) params.set('within_days', String(opts.withinDays));
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    return request<Decision[]>(`/decisions?${params.toString()}`);
+  },
+  listDecisionsByMeeting: (meetingId: string, organizerId: string) =>
+    request<Decision[]>(
+      `/decisions/by-meeting/${meetingId}?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  getDecision: (decisionId: string, organizerId: string) =>
+    request<Decision>(
+      `/decisions/${encodeURIComponent(decisionId)}?organizer_id=${encodeURIComponent(organizerId)}`,
+    ),
+  searchDecisions: (req: DecisionSearchRequest) =>
+    request<DecisionSearchHit[]>('/decisions/search', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    }),
 };
