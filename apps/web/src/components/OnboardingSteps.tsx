@@ -147,6 +147,20 @@ export function OnboardingSteps() {
         <span>派遣フォームへ</span>
         <ArrowDown20Regular />
       </div>
+
+      <p
+        style={{
+          fontSize: 11,
+          color: 'var(--text-4)',
+          margin: 0,
+          paddingTop: 8,
+          borderTop: '1px dashed var(--border-hairline)',
+          lineHeight: 1.55,
+        }}
+      >
+        💡 オプション: Solo モードで「📷 顔シグナル」を ON にすると、うなずき / 困惑 /
+        集中度を AI が読み取ってくれます。動画はサーバーに送りません。
+      </p>
     </section>
   );
 }

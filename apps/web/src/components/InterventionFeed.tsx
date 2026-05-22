@@ -162,6 +162,28 @@ function fmtTime(iso: string): string {
   });
 }
 
+/** agent 名 → 視覚的な絵文字バッジ。Phase 6/7 の新 agent を分離するため。 */
+function agentIcon(agent: string): string {
+  switch (agent) {
+    case 'MemoryRetriever':
+      return '📜';
+    case 'EngagementAgent':
+      return '👀';
+    case 'DecisionCapture':
+      return '✓';
+    case 'DissentSurface':
+      return '⚠';
+    case 'QuietActivator':
+      return '🤫';
+    case 'SteeringAgent':
+      return '🧭';
+    case 'TimeKeeper':
+      return '⏱';
+    default:
+      return '';
+  }
+}
+
 interface Props {
   meeting: Meeting;
   organizerId: string;
@@ -230,7 +252,8 @@ export function InterventionFeed({ meeting, organizerId }: Props) {
                 <div className={styles.body}>
                   <div className={styles.topRow}>
                     <span className={styles.agent}>
-                      {d.agent} <span className={styles.level}>· {d.level}</span>
+                      {agentIcon(d.agent)} {d.agent}{' '}
+                      <span className={styles.level}>· {d.level}</span>
                     </span>
                     <span className={styles.timestamp}>{fmtTime(d.delivered_at)}</span>
                   </div>

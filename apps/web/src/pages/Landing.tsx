@@ -72,7 +72,7 @@ const useStyles = makeStyles({
     filter: 'blur(36px)',
     zIndex: 0,
   },
-  // 細かい星座 (constellation) — 8 つの agent を表す pulsing dots
+  // 細かい星座 (constellation) — 10 の agent を表す pulsing dots
   constellation: {
     position: 'absolute',
     inset: 0,
@@ -488,18 +488,18 @@ const useStyles = makeStyles({
 
 const PILLARS = [
   {
-    kpi: 8,
+    kpi: 10,
     unit: 'agents',
-    title: '8 並列エージェント',
-    body: 'Coverage / Steering / Decision / Quiet / Dissent / TimeKeeper / Goal / Arbiter が同時に会議を観測。役割を細かく分割しているから 1 個壊れても残りで補える。',
+    title: '10 並列エージェント',
+    body: 'Coverage / Steering / Decision / Quiet / Dissent / TimeKeeper / Goal / Memory (横断記憶) / Engagement (顔シグナル) / Arbiter が同時に会議を観測。役割を細かく分割しているから 1 個壊れても残りで補える。',
     icon: <Sparkle24Regular />,
     klass: 'pillarA' as const,
   },
   {
-    kpi: 0.03,
+    kpi: 0.04,
     unit: '$ / 会議',
-    title: '会議 1 本 3 円',
-    body: 'cheap mode で 25 分会議の LLM コストは ¥3.0。決定 1 件あたり ¥0.30 と既存議事録 SaaS より 1 桁安い。1 円単位のコスト透明性を Dashboard で確認可能。',
+    title: '会議 1 本 4 円',
+    body: '10 agent でも cheap mode で 25 分会議の LLM コストは ¥4 前後。決定 1 件あたり ¥0.40 と既存議事録 SaaS より 1 桁安い。1 円単位のコスト透明性を Dashboard で確認可能。',
     icon: <Code24Regular />,
     klass: 'pillarB' as const,
   },
@@ -507,7 +507,7 @@ const PILLARS = [
     kpi: 3,
     unit: '段グラデ介入',
     title: 'L1 / L2 / L3',
-    body: '優先度に応じて、ささやき / サイドバーカード / 音声発話 の 3 段で介入。Density-aware + Authority Gradient で「いつ・誰に」を制御し、会議の空気を壊さない。',
+    body: '優先度に応じて、ささやき / サイドバーカード / 音声発話 の 3 段で介入。Density-aware + Authority Gradient + 顔の困惑度で「いつ・誰に」を制御し、会議の空気を壊さない。',
     icon: <Mic24Regular />,
     klass: 'pillarC' as const,
   },
@@ -522,7 +522,7 @@ const STEPS = [
   {
     index: '02',
     title: 'Helmsman 🧭 が会議に参加',
-    body: '外部参加者として join → Azure Speech で文字起こし → 8 agent が並列に観測。L1/L2/L3 介入を chair の Dashboard に流す。',
+    body: '外部参加者として join → Azure Speech で文字起こし → 10 agent (会議横断記憶・顔シグナル含む) が並列に観測。L1/L2/L3 介入を chair の Dashboard に流す。',
   },
   {
     index: '03',
@@ -531,7 +531,8 @@ const STEPS = [
   },
 ];
 
-// 星座: hero に散らばせる pulsing dots の位置と animation-delay
+// 星座: hero に散らばせる pulsing dots の位置と animation-delay。
+// 各点 = 1 agent (現在 10 個: 既存 8 + MemoryRetriever (Phase 7) + EngagementAgent (Phase 6))
 const STARS: { top: string; left: string; delay: string }[] = [
   { top: '18%', left: '12%', delay: '0s' },
   { top: '32%', left: '88%', delay: '0.6s' },
@@ -541,6 +542,8 @@ const STARS: { top: string; left: string; delay: string }[] = [
   { top: '78%', left: '78%', delay: '3.0s' },
   { top: '46%', left: '92%', delay: '3.6s' },
   { top: '62%', left: '52%', delay: '4.2s' },
+  { top: '38%', left: '34%', delay: '4.8s' },
+  { top: '84%', left: '46%', delay: '5.4s' },
 ];
 
 function RevealSection({
