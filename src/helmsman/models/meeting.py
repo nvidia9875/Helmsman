@@ -93,6 +93,11 @@ class Meeting(BaseModel):
     # ----- Intervention 履歴 (Frontend が feed として表示) -----
     delivered_interventions: list[InterventionDelivery] = Field(default_factory=list)
 
+    # ----- Phase 7: 会議横断記憶 (MemoryRetriever) -----
+    # MemoryRetriever が当会議で既に surface 済の過去 decision id 一覧。
+    # 同一会議内で同じ過去決定を 2 回表示しないようにするための重複抑制。
+    surfaced_decision_ids: list[str] = Field(default_factory=list)
+
     # ----- 追加設定 (2026-05-21) -----
     # AI ファシリテーター名 (UI ヘッダー + agent prompt で使われる)
     facilitator_name: str | None = None

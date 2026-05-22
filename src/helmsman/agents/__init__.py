@@ -1,4 +1,4 @@
-"""6 + 1 agents that power the Helmsman facilitator.
+"""9 + 1 agents that power the Helmsman facilitator.
 
 - GoalDecomposer    : ゴール → 論点 list 分解
 - CoverageTracker   : 発言 → 論点状態更新
@@ -7,6 +7,7 @@
 - DecisionCapture   : 決定検知 + 構造化
 - QuietActivator    : 沈黙参加者活性化
 - DissentSurface    : 反対意見の表面化
+- MemoryRetriever   : 会議横断で過去決定を引いて「あの時こう決めましたよね」(Phase 7)
 - InterventionArbiter (+1): 全候補を調停 (新規性の核)
 """
 
@@ -15,6 +16,7 @@ from helmsman.agents.coverage_tracker import CoverageTracker
 from helmsman.agents.decision_capture import DecisionCapture
 from helmsman.agents.dissent_surface import DissentSurface
 from helmsman.agents.goal_decomposer import GoalDecomposer
+from helmsman.agents.memory_retriever import MemoryRetriever
 from helmsman.agents.quiet_activator import QuietActivator
 from helmsman.agents.report_generator import MeetingReportGenerator
 from helmsman.agents.steering_agent import SteeringAgent
@@ -28,6 +30,7 @@ __all__ = [
     "DecisionCapture",
     "QuietActivator",
     "DissentSurface",
+    "MemoryRetriever",
     "InterventionArbiter",
     "MeetingReportGenerator",
 ]

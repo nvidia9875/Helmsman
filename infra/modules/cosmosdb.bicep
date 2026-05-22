@@ -75,6 +75,18 @@ var containers = [
     name: 'meeting_reports'
     partitionKey: '/meeting_id'
   }
+  {
+    // Phase 7: 会議横断記憶 — DecisionCapture が高 confidence を出した瞬間に
+    // write-through で 1 件ずつ格納。MemoryRetriever が将来会議で引く。
+    name: 'decisions'
+    partitionKey: '/organizer_id'
+  }
+  {
+    // Phase 6: マルチモーダル — ブラウザ webcam の集計シグナル (nod/confusion/engagement)
+    // を 4 秒 batch で受け取り保存。生フレームは保持しない (ADR-105/107)。
+    name: 'face_signals'
+    partitionKey: '/meeting_id'
+  }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-11-15' = [for c in containers: {

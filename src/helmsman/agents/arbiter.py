@@ -32,7 +32,9 @@ class InterventionArbiter:
         "DecisionCapture": 100,
         "TimeKeeper": 80,
         "SteeringAgent": 70,
+        "MemoryRetriever": 65,  # Phase 7: Steering と Dissent の間
         "DissentSurface": 60,
+        "EngagementAgent": 55,  # Phase 6: Dissent と Quiet の間
         "QuietActivator": 50,
         "DevilsAdvocate": 40,  # 将来分
         "GoalDecomposer": 30,  # 通常は decide 直後のみ

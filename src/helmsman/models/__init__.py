@@ -1,5 +1,6 @@
 """Pydantic v2 models for Helmsman domain objects."""
 
+from helmsman.models.decision import Decision
 from helmsman.models.document import Document, DocumentChunk, DocumentStatus
 from helmsman.models.intervention import (
     InterventionCandidate,
@@ -13,6 +14,7 @@ from helmsman.models.utterance import Utterance
 from helmsman.models.voiceprint import Voiceprint
 
 __all__ = [
+    "Decision",
     "Meeting",
     "MeetingMode",
     "MeetingState",
