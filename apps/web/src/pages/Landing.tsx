@@ -12,16 +12,7 @@
  *   2. (任意) "詳細設定" を expand
  *   3. 派遣 → /m/:id へ
  */
-import {
-  Button,
-  Dropdown,
-  Field,
-  Input,
-  Option,
-  Spinner,
-  Textarea,
-  makeStyles,
-} from '@fluentui/react-components';
+import { Button, Spinner, makeStyles } from '@fluentui/react-components';
 import {
   ChevronDown20Regular,
   ChevronUp20Regular,
@@ -319,17 +310,170 @@ const useStyles = makeStyles({
   detailsBody: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px',
-    padding: '14px 4px 4px',
+    gap: '18px',
+    padding: '18px 4px 4px',
     borderTop: '1px solid rgba(255, 255, 255, 0.06)',
   },
   detailsGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: '1fr 120px',
     gap: '12px',
+    alignItems: 'end',
     '@media (max-width: 540px)': {
       gridTemplateColumns: '1fr',
     },
+  },
+
+  // ============ custom field styling ============
+  fieldGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  fieldLabel: {
+    fontSize: '10px',
+    fontWeight: 700,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
+    fontFamily: 'var(--font-mono)',
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  fieldLabelHint: {
+    textTransform: 'none',
+    letterSpacing: '0.02em',
+    color: 'var(--text-4)',
+    fontSize: '10px',
+    fontWeight: 400,
+    fontStyle: 'italic',
+  },
+  fieldShell: {
+    position: 'relative',
+    borderRadius: '10px',
+    transitionProperty: 'box-shadow',
+    transitionDuration: '200ms',
+    ':focus-within': {
+      boxShadow:
+        '0 0 0 1px rgba(91, 141, 239, 0.5), 0 0 24px rgba(91, 141, 239, 0.12)',
+    },
+  },
+  fieldInput: {
+    width: '100%',
+    height: '40px',
+    fontSize: '13px',
+    fontFamily: 'inherit',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    color: 'var(--text-1)',
+    padding: '0 14px',
+    outline: 'none',
+    transitionProperty: 'background-color',
+    transitionDuration: '160ms',
+    '::placeholder': {
+      color: 'var(--text-4)',
+    },
+    ':hover': {
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    },
+    ':focus': {
+      border: '1px solid rgba(91, 141, 239, 0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+  },
+  fieldInputMono: {
+    fontFamily: 'var(--font-mono)',
+    fontVariantNumeric: 'tabular-nums',
+  },
+  fieldTextarea: {
+    width: '100%',
+    minHeight: '64px',
+    fontSize: '13px',
+    fontFamily: 'inherit',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    color: 'var(--text-1)',
+    padding: '10px 14px',
+    outline: 'none',
+    resize: 'vertical',
+    lineHeight: 1.55,
+    transitionProperty: 'background-color',
+    transitionDuration: '160ms',
+    '::placeholder': {
+      color: 'var(--text-4)',
+    },
+    ':focus': {
+      border: '1px solid rgba(91, 141, 239, 0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+  },
+  // ネイティブ <select> をオシャレに見せる — caret は背景 svg で
+  fieldSelect: {
+    width: '100%',
+    height: '40px',
+    fontSize: '13px',
+    fontFamily: 'inherit',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    color: 'var(--text-1)',
+    padding: '0 36px 0 14px',
+    outline: 'none',
+    cursor: 'pointer',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    // caret (svg) — text-3 を rgba 化
+    backgroundImage:
+      'url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 12 12%27 fill=%27none%27%3E%3Cpath d=%27M2.5 4.5L6 8L9.5 4.5%27 stroke=%27rgba(255,255,255,0.45)%27 stroke-width=%271.4%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E")',
+    backgroundRepeat: 'no-repeat',
+    backgroundPosition: 'right 12px center',
+    transitionProperty: 'background-color',
+    transitionDuration: '160ms',
+    ':hover': {
+      backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    },
+    ':focus': {
+      border: '1px solid rgba(91, 141, 239, 0.5)',
+      backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    },
+  },
+
+  // mode chip group — 6 mode を横並び chip 化
+  chipGroup: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+  },
+  chip: {
+    fontSize: '11px',
+    fontFamily: 'var(--font-mono)',
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    color: 'var(--text-2)',
+    padding: '7px 12px',
+    borderRadius: '999px',
+    backgroundColor: 'rgba(0, 0, 0, 0.32)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    cursor: 'pointer',
+    transitionProperty: 'background-color, color, transform, box-shadow',
+    transitionDuration: '160ms',
+    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    ':hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+      color: 'var(--text-1)',
+      transform: 'translateY(-1px)',
+    },
+  },
+  chipActive: {
+    backgroundColor: 'rgba(91, 141, 239, 0.16)',
+    border: '1px solid rgba(91, 141, 239, 0.55)',
+    color: '#dbe7ff',
+    boxShadow: '0 0 16px rgba(91, 141, 239, 0.25)',
   },
 
   // フッター行
@@ -501,68 +645,111 @@ export function Landing() {
         >
           <div className={styles.detailsInner}>
             <div className={styles.detailsBody}>
-              <Field label="AI ファシリテーター名">
-                <Input
-                  value={facilitatorName}
-                  onChange={(_, d) => setFacilitatorName(d.value)}
-                  placeholder="例: Helmsman"
-                />
-              </Field>
-              <Field label="ゴール (任意 — 入れると論点を分解)">
-                <Textarea
-                  value={goal}
-                  onChange={(_, d) => setGoal(d.value)}
-                  placeholder="例: 6 月 30 日のローンチ可否を決定する"
-                  rows={2}
-                />
-              </Field>
-              <div className={styles.detailsGrid}>
-                <Field label="モード">
-                  <Dropdown
-                    value={mode}
-                    selectedOptions={[mode]}
-                    onOptionSelect={(_, d) =>
-                      d.optionValue && setMode(d.optionValue as MeetingMode)
-                    }
-                  >
-                    {MODES.map((m) => (
-                      <Option key={m} value={m}>
-                        {m}
-                      </Option>
-                    ))}
-                  </Dropdown>
-                </Field>
-                <Field label="想定時間 (分)">
-                  <Input
-                    type="number"
-                    value={String(totalMinutes)}
-                    min={5}
-                    max={240}
-                    onChange={(_, d) =>
-                      setTotalMinutes(Math.max(5, Math.min(240, Number(d.value) || 60)))
-                    }
+              {/* AI ファシリテーター名 */}
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel} htmlFor="d-facilitator">
+                  <span>AI ファシリテーター名</span>
+                </label>
+                <div className={styles.fieldShell}>
+                  <input
+                    id="d-facilitator"
+                    className={styles.fieldInput}
+                    value={facilitatorName}
+                    onChange={(e) => setFacilitatorName(e.target.value)}
+                    placeholder="例: Helmsman"
+                    autoComplete="off"
                   />
-                </Field>
+                </div>
               </div>
-              <Field label="グループ (任意 — 共有書類を AI に読ませる)">
-                <Dropdown
-                  placeholder="(なし — 単独で派遣)"
-                  value={
-                    groupId === NO_GROUP
-                      ? ''
-                      : groups?.find((g) => g.id === groupId)?.name ?? ''
-                  }
-                  selectedOptions={[groupId]}
-                  onOptionSelect={(_, d) => setGroupId(d.optionValue ?? NO_GROUP)}
-                >
-                  <Option value={NO_GROUP}>(なし — 単独で派遣)</Option>
-                  {(groups ?? []).map((g) => (
-                    <Option key={g.id} value={g.id}>
-                      {g.name}
-                    </Option>
+
+              {/* ゴール */}
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel} htmlFor="d-goal">
+                  <span>ゴール</span>
+                  <span className={styles.fieldLabelHint}>
+                    任意 · 入れると論点を分解
+                  </span>
+                </label>
+                <div className={styles.fieldShell}>
+                  <textarea
+                    id="d-goal"
+                    className={styles.fieldTextarea}
+                    value={goal}
+                    onChange={(e) => setGoal(e.target.value)}
+                    placeholder="例: 6 月 30 日のローンチ可否を決定する"
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              {/* モード — chip group */}
+              <div className={styles.fieldGroup}>
+                <label className={styles.fieldLabel}>
+                  <span>モード</span>
+                </label>
+                <div className={styles.chipGroup} role="radiogroup" aria-label="モード">
+                  {MODES.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="radio"
+                      aria-checked={mode === m}
+                      className={`${styles.chip} ${mode === m ? styles.chipActive : ''}`}
+                      onClick={() => setMode(m)}
+                    >
+                      {m}
+                    </button>
                   ))}
-                </Dropdown>
-              </Field>
+                </div>
+              </div>
+
+              {/* 時間 + グループ */}
+              <div className={styles.detailsGrid}>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel} htmlFor="d-group">
+                    <span>グループ</span>
+                    <span className={styles.fieldLabelHint}>
+                      任意 · 共有書類を AI に読ませる
+                    </span>
+                  </label>
+                  <div className={styles.fieldShell}>
+                    <select
+                      id="d-group"
+                      className={styles.fieldSelect}
+                      value={groupId}
+                      onChange={(e) => setGroupId(e.target.value)}
+                    >
+                      <option value={NO_GROUP}>(なし — 単独で派遣)</option>
+                      {(groups ?? []).map((g) => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.fieldGroup}>
+                  <label className={styles.fieldLabel} htmlFor="d-minutes">
+                    <span>時間</span>
+                    <span className={styles.fieldLabelHint}>分</span>
+                  </label>
+                  <div className={styles.fieldShell}>
+                    <input
+                      id="d-minutes"
+                      type="number"
+                      className={`${styles.fieldInput} ${styles.fieldInputMono}`}
+                      value={String(totalMinutes)}
+                      min={5}
+                      max={240}
+                      onChange={(e) =>
+                        setTotalMinutes(
+                          Math.max(5, Math.min(240, Number(e.target.value) || 60)),
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
