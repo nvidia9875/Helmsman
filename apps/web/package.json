@@ -4,18 +4,20 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "pnpm fetch-face-model && vite",
+    "build": "pnpm fetch-face-model && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fetch-face-model": "node scripts/fetch-face-model.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.10.1",
     "@azure/msal-react": "^5.4.1",
     "@fluentui/react-components": "^9.73.8",
     "@fluentui/react-icons": "^2.0.318",
+    "@mediapipe/tasks-vision": "^0.10.35",
     "@microsoft/signalr": "^10.0.0",
     "@microsoft/teams-js": "^2.53.0",
     "@tanstack/react-query": "^5.100.10",

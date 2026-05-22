@@ -19,6 +19,9 @@ build/
 # Teams sideload package (生成物)
 apps/teams-app/helmsman-app.zip
 
+# Phase 6 MediaPipe: WASM + model (build 時 fetch、git に入れない)
+apps/web/public/mediapipe/
+
 # Node
 node_modules/
 .npm
