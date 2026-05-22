@@ -15,6 +15,7 @@ from helmsman.agents import (
     GoalDecomposer,
     InterventionArbiter,
     MeetingReportGenerator,
+    MemoryRetriever,
     QuietActivator,
     SteeringAgent,
     TimeKeeper,
@@ -545,6 +546,7 @@ async def tick(
     decision_capture = DecisionCapture()
     quiet = QuietActivator()
     dissent = DissentSurface()
+    memory = MemoryRetriever()
 
     # 文書 RAG: 文書付き会議 or グループ所属会議だと CoverageTracker に excerpt を流す
     doc_excerpts: str | None = None
@@ -559,6 +561,7 @@ async def tick(
             logger.warning("tick.doc_excerpts_failed", error=str(e))
 
     # 全 agent を並列実行。1 つが失敗しても他は続行 (return_exceptions=True)。
+    # MemoryRetriever は usage_sink を直接渡す (embed コスト集計のため)
     results = await asyncio.gather(
         coverage.run(req.recent_utterances, meeting.topics, document_excerpts=doc_excerpts),
         steering.run(meeting, req.recent_utterances, meeting.topics),
@@ -567,6 +570,7 @@ async def tick(
         ),
         quiet.run(meeting, req.participants, meeting.topics),
         dissent.run(meeting, req.recent_utterances),
+        memory.run(meeting, req.recent_utterances, usage_sink=meeting.usage),
         return_exceptions=True,
     )
 
@@ -583,9 +587,27 @@ async def tick(
     decision_result = _ok(results[2]) or (None, None)
     quiet_cand = _ok(results[3])
     dissent_cand = _ok(results[4])
+    memory_cand = _ok(results[5])
 
     meeting.topics = updated_topics
-    _decision_topic, decision_cand = decision_result
+    decision_topic, decision_cand = decision_result
+
+    # Phase 7: DecisionCapture が高 confidence で DECIDED にした topic を
+    # write-through で Cosmos + AI Search に保存する (decision_persist.py)
+    if decision_topic is not None and decision_cand is not None:
+        try:
+            from helmsman.services.decision_persistence import persist_decision
+            await persist_decision(
+                meeting=meeting,
+                topic=decision_topic,
+                candidate=decision_cand,
+                usage_sink=meeting.usage,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "tick.decision_persist_failed", error=str(e),
+                topic_id=decision_topic.id,
+            )
 
     # 候補集約
     candidates: list[InterventionCandidate] = []
@@ -597,6 +619,8 @@ async def tick(
         candidates.append(quiet_cand)
     if dissent_cand:
         candidates.append(dissent_cand)
+    if memory_cand:
+        candidates.append(memory_cand)
 
     # TimeKeeper (rule-based)
     tk = TimeKeeper().run(meeting)
@@ -606,7 +630,7 @@ async def tick(
     # LLM 呼び出しの usage を Meeting に積み上げる
     _accumulate_usage(
         meeting.usage,
-        [coverage, steering, decision_capture, quiet, dissent],
+        [coverage, steering, decision_capture, quiet, dissent, memory],
     )
 
     # Arbiter
@@ -622,6 +646,16 @@ async def tick(
         meeting.delivered_interventions.append(delivery)
         # 最新 20 件のみ保持 (Cosmos の document サイズ + UI スクロール量を抑える)
         meeting.delivered_interventions = meeting.delivered_interventions[-20:]
+        # Phase 7: MemoryRetriever が配信された場合、その過去 decision id を
+        # surfaced リストに追加して同一会議内の重複表示を抑制 (ADR-103)
+        if (
+            delivery.agent == "MemoryRetriever"
+            and delivery.evidence_quote
+            and delivery.evidence_quote not in meeting.surfaced_decision_ids
+        ):
+            meeting.surfaced_decision_ids.append(delivery.evidence_quote)
+            # 最新 50 件のみ保持
+            meeting.surfaced_decision_ids = meeting.surfaced_decision_ids[-50:]
 
     await repo.upsert(meeting)
 

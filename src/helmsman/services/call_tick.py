@@ -51,6 +51,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         DecisionCapture,
         DissentSurface,
         InterventionArbiter,
+        MemoryRetriever,
         QuietActivator,
         SteeringAgent,
         TimeKeeper,
@@ -89,6 +90,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     decision_capture = DecisionCapture()
     quiet = QuietActivator()
     dissent = DissentSurface()
+    memory = MemoryRetriever()
     recent = session.utterances[-15:]
 
     # 文書 RAG (DOC-5): bot 会議でも CoverageTracker に excerpt を渡す
@@ -112,6 +114,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         ),
         quiet.run(meeting, participants, meeting.topics),
         dissent.run(meeting, recent),
+        memory.run(meeting, recent, usage_sink=meeting.usage),
         return_exceptions=True,
     )
 
@@ -124,14 +127,31 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     meeting.topics = _ok(results[0]) or meeting.topics
     steering_cand = _ok(results[1])
     decision_result = _ok(results[2]) or (None, None)
-    _decision_topic, decision_cand = decision_result
+    decision_topic, decision_cand = decision_result
     quiet_cand = _ok(results[3])
     dissent_cand = _ok(results[4])
+    memory_cand = _ok(results[5])
+
+    # Phase 7: DecisionCapture 確定時、write-through で Cosmos + Search に保存
+    if decision_topic is not None and decision_cand is not None:
+        try:
+            from helmsman.services.decision_persistence import persist_decision
+            await persist_decision(
+                meeting=meeting,
+                topic=decision_topic,
+                candidate=decision_cand,
+                usage_sink=meeting.usage,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "call.decision_persist_failed", error=str(e),
+                topic_id=decision_topic.id,
+            )
 
     candidates: list[InterventionCandidate] = []
     # 議論方向確認 (Steering) は設定で OFF にできる
     for c in (steering_cand if meeting.steering_enabled else None, decision_cand,
-              quiet_cand, dissent_cand):
+              quiet_cand, dissent_cand, memory_cand):
         if c:
             candidates.append(c)
     tk = TimeKeeper().run(meeting)
@@ -139,7 +159,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         candidates.append(tk)
 
     # usage 集計
-    for agent in (coverage, steering, decision_capture, quiet, dissent):
+    for agent in (coverage, steering, decision_capture, quiet, dissent, memory):
         record = agent.last_usage
         if record is None:
             continue
@@ -152,6 +172,14 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         meeting.last_intervention_at = datetime.now(UTC)
         meeting.delivered_interventions.append(delivery)
         meeting.delivered_interventions = meeting.delivered_interventions[-20:]
+        # Phase 7: MemoryRetriever が配信されたら surfaced リストに追加 (dedup)
+        if (
+            delivery.agent == "MemoryRetriever"
+            and delivery.evidence_quote
+            and delivery.evidence_quote not in meeting.surfaced_decision_ids
+        ):
+            meeting.surfaced_decision_ids.append(delivery.evidence_quote)
+            meeting.surfaced_decision_ids = meeting.surfaced_decision_ids[-50:]
 
     await repo.upsert(meeting)
 
