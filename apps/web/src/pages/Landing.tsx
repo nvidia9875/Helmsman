@@ -1,806 +1,579 @@
-import { Button, makeStyles, mergeClasses } from '@fluentui/react-components';
+/**
+ * Landing — tool-first トップページ。
+ *
+ * 設計方針 (ユーザ指示):
+ *   - マーケコピー / ハッカソン表記 / pillar 等は一切置かない (/help へ退避済)
+ *   - 中央に URL 入力 + 派遣ボタンだけ。**詳細設定は折りたたみ**
+ *   - 詳細設定 = AI ファシリテーター名 / ゴール / モード / 時間 / グループ
+ *   - 動きは「気持ちいい」レベル: aurora drift / focus glow / submit ripple
+ *
+ * 流れ:
+ *   1. URL を貼る → 検証パス → ボタン active
+ *   2. (任意) "詳細設定" を expand
+ *   3. 派遣 → /m/:id へ
+ */
 import {
-  ArrowRight24Regular,
-  Code24Regular,
-  CompassNorthwestRegular,
-  Mic24Regular,
+  Button,
+  Dropdown,
+  Field,
+  Input,
+  Option,
+  Spinner,
+  Textarea,
+  makeStyles,
+} from '@fluentui/react-components';
+import {
+  ChevronDown20Regular,
+  ChevronUp20Regular,
   Rocket24Regular,
-  Sparkle24Regular,
 } from '@fluentui/react-icons';
-import { useEffect, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { CountUp } from '@/components/primitives/CountUp';
-import { useInView } from '@/hooks/useInView';
+import { api, type MeetingMode } from '@/lib/api';
+import { useIdentity } from '@/lib/store';
+
+const NO_GROUP = '__none__';
+const TEAMS_URL_PATTERN = /^https:\/\/teams\.microsoft\.com\/(.+meetup-join|meet\/\d+)/;
+const DEFAULT_FACILITATOR_NAME = 'Helmsman';
+const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '1on1', 'Kickoff'];
 
 const useStyles = makeStyles({
   page: {
+    position: 'relative',
+    minHeight: 'calc(100vh - 52px)',
     display: 'flex',
     flexDirection: 'column',
-    minHeight: 'calc(100vh - 52px)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '48px 24px',
     overflow: 'hidden',
+    backgroundColor: 'var(--bg-0)',
   },
 
-  // ============ HERO ============
-  hero: {
-    position: 'relative',
-    minHeight: 'min(720px, 85vh)',
-    padding: '64px 32px 56px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    textAlign: 'center',
-    borderBottom: '1px solid var(--border-hairline)',
-    overflow: 'hidden',
-  },
-  // 背景: 3 つの放射 orb と ambient drift。global.css の body::after と重ねる
-  heroOrbA: {
+  // ============ 背景アニメ (aurora) ============
+  // 3 つの色付き円を巨大に blur して body 上を漂わせる。
+  // 全部 transform/opacity アニメで合成 GPU 化、JS スクロール一切なし。
+  auroraA: {
     position: 'absolute',
-    top: '-12%',
+    top: '-20%',
     left: '50%',
-    width: '900px',
-    height: '900px',
-    pointerEvents: 'none',
-    transform: 'translateX(-50%)',
+    width: 'min(1200px, 130vw)',
+    height: 'min(1200px, 130vw)',
     background:
-      'radial-gradient(circle, rgba(91, 141, 239, 0.18) 0%, rgba(91, 141, 239, 0) 55%)',
-    filter: 'blur(40px)',
+      'radial-gradient(circle at center, rgba(91, 141, 239, 0.28) 0%, rgba(91, 141, 239, 0) 60%)',
+    filter: 'blur(60px)',
+    transform: 'translate(-50%, 0)',
+    pointerEvents: 'none',
     zIndex: 0,
+    animationName: {
+      '0%, 100%': { transform: 'translate(-50%, 0) scale(1)' },
+      '50%': { transform: 'translate(-46%, -2%) scale(1.06)' },
+    },
+    animationDuration: '18s',
+    animationIterationCount: 'infinite',
+    animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
   },
-  heroOrbB: {
+  auroraB: {
     position: 'absolute',
-    bottom: '-20%',
-    right: '5%',
-    width: '500px',
-    height: '500px',
-    pointerEvents: 'none',
+    bottom: '-30%',
+    left: '-10%',
+    width: '70vw',
+    height: '70vw',
     background:
-      'radial-gradient(circle, rgba(176, 124, 255, 0.13) 0%, rgba(176, 124, 255, 0) 60%)',
-    filter: 'blur(40px)',
+      'radial-gradient(circle at center, rgba(176, 124, 255, 0.22) 0%, rgba(176, 124, 255, 0) 65%)',
+    filter: 'blur(70px)',
+    pointerEvents: 'none',
     zIndex: 0,
+    animationName: {
+      '0%, 100%': { transform: 'translate(0, 0) scale(1)', opacity: 0.7 },
+      '50%': { transform: 'translate(4%, -3%) scale(1.08)', opacity: 1 },
+    },
+    animationDuration: '22s',
+    animationIterationCount: 'infinite',
   },
-  heroOrbC: {
+  auroraC: {
     position: 'absolute',
-    top: '20%',
-    left: '5%',
-    width: '420px',
-    height: '420px',
-    pointerEvents: 'none',
+    top: '-10%',
+    right: '-10%',
+    width: '55vw',
+    height: '55vw',
     background:
-      'radial-gradient(circle, rgba(92, 240, 245, 0.10) 0%, rgba(92, 240, 245, 0) 60%)',
-    filter: 'blur(36px)',
+      'radial-gradient(circle at center, rgba(92, 240, 245, 0.18) 0%, rgba(92, 240, 245, 0) 60%)',
+    filter: 'blur(70px)',
+    pointerEvents: 'none',
     zIndex: 0,
+    animationName: {
+      '0%, 100%': { transform: 'translate(0, 0) scale(1)' },
+      '50%': { transform: 'translate(-2%, 4%) scale(1.1)' },
+    },
+    animationDuration: '26s',
+    animationIterationCount: 'infinite',
   },
-  // 細かい星座 (constellation) — 10 の agent を表す pulsing dots
-  constellation: {
+
+  // 微細なグリッドオーバーレイ — 「ツールっぽさ」を出す
+  grid: {
     position: 'absolute',
     inset: 0,
+    backgroundImage:
+      'linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px)',
+    backgroundSize: '64px 64px',
     pointerEvents: 'none',
+    maskImage:
+      'radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)',
+    WebkitMaskImage:
+      'radial-gradient(ellipse at center, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)',
     zIndex: 0,
   },
-  star: {
-    position: 'absolute',
-    width: '4px',
-    height: '4px',
-    borderRadius: '999px',
-    backgroundColor: 'var(--accent-cyan)',
-    boxShadow: '0 0 12px rgba(92, 240, 245, 0.7)',
-    opacity: 0.4,
-    animationName: {
-      '0%, 100%': { opacity: 0.25, transform: 'scale(1)' },
-      '50%': { opacity: 0.9, transform: 'scale(1.4)' },
-    },
-    animationDuration: '4s',
-    animationIterationCount: 'infinite',
-    animationTimingFunction: 'ease-in-out',
-    '@media (prefers-reduced-motion: reduce)': {
-      animationName: 'none',
-      opacity: 0.4,
-    },
-  },
 
-  // ヒーロー中身
-  heroInner: {
+  // ============ 中央カード ============
+  card: {
     position: 'relative',
+    width: '100%',
+    maxWidth: '640px',
     zIndex: 1,
-    maxWidth: '960px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
     gap: '20px',
+    padding: '36px 36px 28px',
+    borderRadius: '20px',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(12, 12, 16, 0.72)',
+    backdropFilter: 'blur(24px) saturate(160%)',
+    WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+    boxShadow:
+      '0 24px 64px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+    // mount アニメ
+    animationName: {
+      '0%': { opacity: 0, transform: 'translateY(8px) scale(0.98)' },
+      '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
+    },
+    animationDuration: '700ms',
+    animationTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
   },
-  eyebrow: {
-    display: 'inline-flex',
+
+  // ロゴマーク + brand name
+  brandRow: {
+    display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.18em',
-    textTransform: 'uppercase',
-    color: 'var(--accent-cyan)',
-    fontFamily: 'var(--font-mono)',
-    padding: '6px 14px',
-    borderRadius: '999px',
-    backgroundColor: 'rgba(92, 240, 245, 0.07)',
-    border: '1px solid rgba(92, 240, 245, 0.22)',
-  },
-  eyebrowDot: {
-    width: '6px',
-    height: '6px',
-    borderRadius: '999px',
-    backgroundColor: 'var(--accent-cyan)',
-    boxShadow: '0 0 8px rgba(92, 240, 245, 0.9)',
-    animationName: {
-      '0%, 100%': { opacity: 0.5 },
-      '50%': { opacity: 1 },
-    },
-    animationDuration: '1.6s',
-    animationIterationCount: 'infinite',
-  },
-  headline: {
-    margin: 0,
-    fontSize: 'clamp(36px, 6.2vw, 76px)',
-    lineHeight: 1.02,
-    letterSpacing: '-0.032em',
-    fontWeight: 600,
-    color: 'var(--text-1)',
-  },
-  // gradient で強調する単語
-  headlineAccent: {
-    background:
-      'linear-gradient(120deg, var(--accent-cyan) 0%, var(--accent) 45%, var(--accent-violet) 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
-    color: 'transparent',
-  },
-  subhead: {
-    color: 'var(--text-2)',
-    fontSize: 'clamp(15px, 1.4vw, 18px)',
-    lineHeight: 1.6,
-    maxWidth: '640px',
-    margin: 0,
-  },
-  ctaRow: {
-    display: 'flex',
-    gap: '12px',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    marginTop: '12px',
-  },
-  ctaPrimary: {
-    minWidth: '200px',
-  },
-  ctaSecondary: {
-    color: 'var(--text-2)',
-    border: '1px solid var(--border-default)',
-    backgroundColor: 'transparent',
-    padding: '0 22px',
-    height: '40px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '8px',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: 500,
-    cursor: 'pointer',
-    transitionProperty: 'background-color, color, border-color',
-    transitionDuration: '160ms',
-    ':hover': {
-      color: 'var(--text-1)',
-      backgroundColor: 'var(--bg-1)',
-      border: '1px solid var(--border-default)',
-    },
-  },
-  // hero KPI ticker
-  ticker: {
-    marginTop: '36px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '24px',
-    padding: '12px 22px',
-    borderRadius: '999px',
-    border: '1px solid var(--border-hairline)',
-    backgroundColor: 'rgba(13, 13, 16, 0.55)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    fontFamily: 'var(--font-mono)',
-    fontSize: '12px',
-    color: 'var(--text-2)',
-    letterSpacing: '0.02em',
-  },
-  tickerItem: {
-    display: 'inline-flex',
-    alignItems: 'baseline',
-    gap: '8px',
-  },
-  tickerValue: {
-    color: 'var(--text-1)',
-    fontSize: '14px',
-    fontWeight: 700,
-    fontVariantNumeric: 'tabular-nums',
-  },
-  tickerLabel: {
     color: 'var(--text-3)',
-    fontSize: '10px',
-    textTransform: 'uppercase',
-    letterSpacing: '0.1em',
-  },
-  tickerSep: {
-    width: '1px',
-    height: '18px',
-    backgroundColor: 'var(--border-hairline)',
-  },
-  scrollHint: {
-    position: 'absolute',
-    bottom: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    color: 'var(--text-4)',
-    fontSize: '10px',
+    fontSize: '11px',
     fontFamily: 'var(--font-mono)',
-    letterSpacing: '0.16em',
+    letterSpacing: '0.14em',
     textTransform: 'uppercase',
-    zIndex: 1,
-    animationName: {
-      '0%, 100%': { transform: 'translateX(-50%) translateY(0)' },
-      '50%': { transform: 'translateX(-50%) translateY(4px)' },
-    },
-    animationDuration: '2.8s',
-    animationIterationCount: 'infinite',
-    animationTimingFunction: 'ease-in-out',
-  },
-
-  // ============ SECTIONS COMMON ============
-  section: {
-    padding: '96px 32px',
-    borderBottom: '1px solid var(--border-hairline)',
-    position: 'relative',
-  },
-  sectionInner: {
-    maxWidth: '1180px',
-    margin: '0 auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '40px',
-  },
-  sectionHeader: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    maxWidth: '720px',
-  },
-  sectionEyebrow: {
-    fontSize: '10px',
-    fontWeight: 700,
-    letterSpacing: '0.16em',
-    textTransform: 'uppercase',
-    color: 'var(--accent)',
-    fontFamily: 'var(--font-mono)',
-  },
-  sectionTitle: {
-    margin: 0,
-    fontSize: 'clamp(26px, 3vw, 40px)',
-    lineHeight: 1.12,
-    letterSpacing: '-0.022em',
     fontWeight: 600,
-    color: 'var(--text-1)',
   },
-  sectionLede: {
-    color: 'var(--text-2)',
-    fontSize: '15px',
-    lineHeight: 1.6,
-    maxWidth: '620px',
+  brandMark: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '6px',
+    background: 'linear-gradient(135deg, #5b8def 0%, #3661cf 100%)',
+    color: '#fff',
+    fontSize: '11px',
+    fontWeight: 800,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 16px rgba(91, 141, 239, 0.4)',
   },
 
-  // ============ PILLARS (3-bento) ============
-  pillarsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '16px',
-    '@media (max-width: 920px)': {
-      gridTemplateColumns: '1fr',
+  // 入力 + ボタン inline
+  inputRow: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'stretch',
+    '@media (max-width: 540px)': {
+      flexDirection: 'column',
     },
   },
-  pillar: {
+  urlInputWrap: {
     position: 'relative',
-    padding: '32px 28px',
-    borderRadius: '14px',
-    border: '1px solid var(--border-hairline)',
-    background: 'linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%)',
-    overflow: 'hidden',
-    transitionProperty: 'transform, border-color, box-shadow',
+    flex: 1,
+    minWidth: 0,
+  },
+  // Fluent Input のラッパに focus-within で glow
+  urlInputShell: {
+    position: 'relative',
+    borderRadius: '12px',
+    transitionProperty: 'box-shadow, transform',
+    transitionDuration: '240ms',
+    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    ':focus-within': {
+      boxShadow:
+        '0 0 0 1px rgba(91, 141, 239, 0.6), 0 0 32px rgba(91, 141, 239, 0.18)',
+    },
+  },
+  urlInput: {
+    width: '100%',
+    height: '52px',
+    fontSize: '14px',
+    fontFamily: 'var(--font-mono)',
+    borderRadius: '12px',
+    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: 'var(--text-1)',
+    padding: '0 16px',
+    outline: 'none',
+    transitionProperty: 'border-color, background-color',
+    transitionDuration: '200ms',
+    '::placeholder': {
+      color: 'var(--text-4)',
+    },
+    ':focus': {
+      border: '1px solid rgba(91, 141, 239, 0.6)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+  },
+  // validate 状態のドット
+  validDot: {
+    position: 'absolute',
+    right: '14px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    width: '8px',
+    height: '8px',
+    borderRadius: '999px',
+    pointerEvents: 'none',
+    transitionProperty: 'background-color, box-shadow',
+    transitionDuration: '200ms',
+  },
+  validDotOk: {
+    backgroundColor: '#3ddc97',
+    boxShadow: '0 0 12px rgba(61, 220, 151, 0.6)',
+  },
+  validDotPending: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  validDotError: {
+    backgroundColor: '#fca5a5',
+    boxShadow: '0 0 12px rgba(252, 165, 165, 0.4)',
+  },
+
+  dispatchBtn: {
+    height: '52px',
+    minWidth: '160px',
+    fontSize: '14px',
+    fontWeight: 600,
+    borderRadius: '12px',
+    background: 'linear-gradient(135deg, #5b8def 0%, #4a6dd9 100%)',
+    border: '1px solid rgba(91, 141, 239, 0.5)',
+    color: '#fff',
+    boxShadow: '0 8px 32px rgba(91, 141, 239, 0.35)',
+    transitionProperty: 'transform, box-shadow, opacity',
+    transitionDuration: '160ms',
+    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    ':hover': {
+      transform: 'translateY(-1px)',
+      boxShadow: '0 12px 40px rgba(91, 141, 239, 0.5)',
+    },
+    ':active': {
+      transform: 'translateY(0)',
+    },
+    ':disabled': {
+      opacity: 0.5,
+      boxShadow: 'none',
+      cursor: 'not-allowed',
+    },
+  },
+
+  // 詳細設定 toggle
+  detailsToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    padding: '8px 4px',
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--text-3)',
+    fontSize: '12px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    cursor: 'pointer',
+    transitionProperty: 'color',
+    transitionDuration: '160ms',
+    ':hover': { color: 'var(--text-1)' },
+  },
+  detailsToggleLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+
+  details: {
+    display: 'grid',
+    gridTemplateRows: '0fr',
+    transitionProperty: 'grid-template-rows',
     transitionDuration: '320ms',
     transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-    ':hover': {
-      transform: 'translateY(-4px)',
-      border: '1px solid rgba(91, 141, 239, 0.4)',
-      boxShadow: '0 20px 60px -20px rgba(91, 141, 239, 0.35)',
-    },
   },
-  pillarA: {
-    '::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: '2px',
-      background:
-        'linear-gradient(90deg, var(--accent), var(--accent-cyan))',
-    },
+  detailsOpen: {
+    gridTemplateRows: '1fr',
   },
-  pillarB: {
-    '::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: '2px',
-      background:
-        'linear-gradient(90deg, var(--accent-cyan), var(--accent-violet))',
-    },
+  detailsInner: {
+    overflow: 'hidden',
   },
-  pillarC: {
-    '::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: '2px',
-      background:
-        'linear-gradient(90deg, var(--accent-violet), var(--accent))',
-    },
-  },
-  pillarIcon: {
-    width: '44px',
-    height: '44px',
-    borderRadius: '10px',
+  detailsBody: {
     display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(91, 141, 239, 0.10)',
-    color: 'var(--accent)',
-    marginBottom: '18px',
+    flexDirection: 'column',
+    gap: '14px',
+    padding: '14px 4px 4px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
   },
-  pillarKpi: {
-    fontSize: 'clamp(38px, 4.6vw, 56px)',
-    fontWeight: 700,
-    lineHeight: 1,
-    letterSpacing: '-0.03em',
-    color: 'var(--text-1)',
-    fontFamily: 'var(--font-mono)',
-    fontVariantNumeric: 'tabular-nums',
-  },
-  pillarKpiUnit: {
-    fontSize: '0.42em',
-    color: 'var(--text-3)',
-    marginLeft: '6px',
-    fontWeight: 500,
-  },
-  pillarTitle: {
-    margin: '14px 0 6px',
-    fontSize: '15px',
-    fontWeight: 600,
-    color: 'var(--text-1)',
-    letterSpacing: '-0.01em',
-  },
-  pillarBody: {
-    fontSize: '13px',
-    color: 'var(--text-2)',
-    lineHeight: 1.6,
-    margin: 0,
-  },
-
-  // ============ HOW IT WORKS ============
-  steps: {
+  detailsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '8px',
-    '@media (max-width: 920px)': {
+    gridTemplateColumns: '1fr 1fr',
+    gap: '12px',
+    '@media (max-width: 540px)': {
       gridTemplateColumns: '1fr',
     },
   },
-  step: {
-    position: 'relative',
-    padding: '28px 24px',
-    borderRadius: '12px',
-    border: '1px solid var(--border-hairline)',
-    backgroundColor: 'var(--bg-1)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  stepIndex: {
-    fontFamily: 'var(--font-mono)',
-    fontSize: '11px',
-    color: 'var(--accent-cyan)',
-    letterSpacing: '0.16em',
-  },
-  stepTitle: {
-    margin: 0,
-    fontSize: '17px',
-    fontWeight: 600,
-    color: 'var(--text-1)',
-    lineHeight: 1.3,
-  },
-  stepBody: {
-    color: 'var(--text-2)',
-    fontSize: '13px',
-    lineHeight: 1.6,
-    margin: 0,
-  },
 
-  // ============ FINAL CTA BAND ============
-  ctaBand: {
-    position: 'relative',
-    padding: '88px 32px',
-    overflow: 'hidden',
-    background:
-      'radial-gradient(ellipse 80% 100% at 50% 0%, rgba(91, 141, 239, 0.15), transparent 65%), var(--bg-0)',
-    borderBottom: '1px solid var(--border-hairline)',
-  },
-  ctaBandInner: {
-    maxWidth: '720px',
-    margin: '0 auto',
-    textAlign: 'center',
+  // フッター行
+  footerRow: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '18px',
     alignItems: 'center',
-    position: 'relative',
-    zIndex: 1,
-  },
-  ctaBandTitle: {
-    margin: 0,
-    fontSize: 'clamp(28px, 3.6vw, 44px)',
-    fontWeight: 600,
-    color: 'var(--text-1)',
-    letterSpacing: '-0.025em',
-    lineHeight: 1.15,
-  },
-  ctaBandHint: {
-    color: 'var(--text-3)',
-    fontSize: '13px',
+    justifyContent: 'space-between',
+    paddingTop: '6px',
+    fontSize: '11px',
     fontFamily: 'var(--font-mono)',
-    letterSpacing: '0.04em',
+    color: 'var(--text-4)',
+    letterSpacing: '0.06em',
+  },
+  helpLink: {
+    color: 'var(--text-3)',
+    textDecoration: 'none',
+    transitionProperty: 'color',
+    transitionDuration: '160ms',
+    ':hover': { color: 'var(--accent)' },
   },
 
-  // ============ Reveal animation (driven by useInView) ============
-  reveal: {
-    opacity: 0,
-    transform: 'translateY(16px)',
-    transitionProperty: 'opacity, transform',
-    transitionDuration: '600ms',
-    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-  },
-  revealOn: {
-    opacity: 1,
-    transform: 'translateY(0)',
+  // エラー / Hint
+  errorText: {
+    fontSize: '12px',
+    color: '#fca5a5',
+    fontFamily: 'var(--font-mono)',
+    margin: '4px 4px 0',
   },
 });
-
-const PILLARS = [
-  {
-    kpi: 10,
-    unit: 'agents',
-    title: '10 並列エージェント',
-    body: 'Coverage / Steering / Decision / Quiet / Dissent / TimeKeeper / Goal / Memory (横断記憶) / Engagement (顔シグナル) / Arbiter が同時に会議を観測。役割を細かく分割しているから 1 個壊れても残りで補える。',
-    icon: <Sparkle24Regular />,
-    klass: 'pillarA' as const,
-  },
-  {
-    kpi: 0.04,
-    unit: '$ / 会議',
-    title: '会議 1 本 4 円',
-    body: '10 agent でも cheap mode で 25 分会議の LLM コストは ¥4 前後。決定 1 件あたり ¥0.40 と既存議事録 SaaS より 1 桁安い。1 円単位のコスト透明性を Dashboard で確認可能。',
-    icon: <Code24Regular />,
-    klass: 'pillarB' as const,
-  },
-  {
-    kpi: 3,
-    unit: '段グラデ介入',
-    title: 'L1 / L2 / L3',
-    body: '優先度に応じて、ささやき / サイドバーカード / 音声発話 の 3 段で介入。Density-aware + Authority Gradient + 顔の困惑度で「いつ・誰に」を制御し、会議の空気を壊さない。',
-    icon: <Mic24Regular />,
-    klass: 'pillarC' as const,
-  },
-];
-
-const STEPS = [
-  {
-    index: '01',
-    title: 'Teams 会議の URL を貼る',
-    body: 'いつも通り Teams カレンダーで会議を作り、参加 URL をコピーして Helmsman の Dispatch 画面に貼る。',
-  },
-  {
-    index: '02',
-    title: 'Helmsman 🧭 が会議に参加',
-    body: '外部参加者として join → Azure Speech で文字起こし → 10 agent (会議横断記憶・顔シグナル含む) が並列に観測。L1/L2/L3 介入を chair の Dashboard に流す。',
-  },
-  {
-    index: '03',
-    title: '構造化された決定 + レポート',
-    body: '会議終了で 10 件規模の `evidence_quote` 付き決定を取得。自社テンプレ + 手書きメモを貼ればそのまま markdown レポートが完成。',
-  },
-];
-
-// 星座: hero に散らばせる pulsing dots の位置と animation-delay。
-// 各点 = 1 agent (現在 10 個: 既存 8 + MemoryRetriever (Phase 7) + EngagementAgent (Phase 6))
-const STARS: { top: string; left: string; delay: string }[] = [
-  { top: '18%', left: '12%', delay: '0s' },
-  { top: '32%', left: '88%', delay: '0.6s' },
-  { top: '56%', left: '8%', delay: '1.2s' },
-  { top: '70%', left: '24%', delay: '1.8s' },
-  { top: '24%', left: '62%', delay: '2.4s' },
-  { top: '78%', left: '78%', delay: '3.0s' },
-  { top: '46%', left: '92%', delay: '3.6s' },
-  { top: '62%', left: '52%', delay: '4.2s' },
-  { top: '38%', left: '34%', delay: '4.8s' },
-  { top: '84%', left: '46%', delay: '5.4s' },
-];
-
-function RevealSection({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  const styles = useStyles();
-  const [ref, inView] = useInView<HTMLDivElement>({ threshold: 0.12 });
-  return (
-    <div
-      ref={ref}
-      className={mergeClasses(
-        styles.reveal,
-        inView && styles.revealOn,
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}
 
 export function Landing() {
   const styles = useStyles();
   const navigate = useNavigate();
+  const { userId, displayName, setName } = useIdentity();
+  const initialName =
+    displayName && displayName !== 'Anonymous' ? displayName : DEFAULT_FACILITATOR_NAME;
 
-  // hero KPI: 軽い演出のため数値を遅延注入 (count up を意味あるように発火させる)
-  const [ticking, setTicking] = useState(false);
+  const [teamsUrl, setTeamsUrl] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [goal, setGoal] = useState('');
+  const [mode, setMode] = useState<MeetingMode>('Decision');
+  const [totalMinutes, setTotalMinutes] = useState(60);
+  const [groupId, setGroupId] = useState<string>(NO_GROUP);
+  const [facilitatorName, setFacilitatorName] = useState(initialName);
+
+  const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    const id = window.setTimeout(() => setTicking(true), 220);
+    // mount 後に軽くフォーカスして "ここから始める" を示す
+    const id = window.setTimeout(() => inputRef.current?.focus(), 350);
     return () => window.clearTimeout(id);
   }, []);
 
+  const { data: groups } = useQuery({
+    queryKey: ['groups', userId],
+    queryFn: () => api.listGroups(userId),
+    enabled: showDetails,  // expand されるまで読み込まない
+  });
+
+  const dispatchMutation = useMutation({
+    mutationFn: () =>
+      api.startMeeting({
+        organizer_id: userId,
+        goal: goal.trim(),
+        mode,
+        total_minutes: totalMinutes,
+        teams_meeting_url: teamsUrl.trim() || null,
+        group_id: groupId === NO_GROUP ? null : groupId,
+        facilitator_name: facilitatorName.trim() || null,
+      }),
+    onSuccess: (meeting) => {
+      if (facilitatorName) setName(facilitatorName);
+      navigate(`/m/${meeting.id}?organizer_id=${encodeURIComponent(userId)}`);
+    },
+  });
+
+  const urlTrimmed = teamsUrl.trim();
+  const urlValid = TEAMS_URL_PATTERN.test(urlTrimmed);
+  const urlEmpty = urlTrimmed.length === 0;
+  const facilitatorOk = facilitatorName.trim().length > 0;
+  const ready = urlValid && facilitatorOk && !dispatchMutation.isPending;
+
+  const dotClass = urlEmpty
+    ? styles.validDotPending
+    : urlValid
+      ? styles.validDotOk
+      : styles.validDotError;
+
   return (
-    <div className={styles.page}>
-      {/* ============ HERO ============ */}
-      <section className={styles.hero} aria-labelledby="hero-headline">
-        <div className={styles.heroOrbA} aria-hidden />
-        <div className={styles.heroOrbB} aria-hidden />
-        <div className={styles.heroOrbC} aria-hidden />
-        <div className={styles.constellation} aria-hidden>
-          {STARS.map((s, i) => (
-            <span
-              key={i}
-              className={styles.star}
-              style={{
-                top: s.top,
-                left: s.left,
-                animationDelay: s.delay,
-              }}
-            />
-          ))}
-        </div>
+    <main className={styles.page} aria-label="Helmsman dispatch">
+      <div className={styles.auroraA} aria-hidden />
+      <div className={styles.auroraB} aria-hidden />
+      <div className={styles.auroraC} aria-hidden />
+      <div className={styles.grid} aria-hidden />
 
-        <div className={`${styles.heroInner} stagger`}>
-          <span className={styles.eyebrow}>
-            <span className={styles.eyebrowDot} aria-hidden />
-            AI MEETING CO-PILOT · MICROSOFT AGENT HACKATHON 2026
+      <section className={styles.card}>
+        <div className={styles.brandRow}>
+          <span className={styles.brandMark} aria-hidden>
+            H
           </span>
-
-          <h1 id="hero-headline" className={styles.headline}>
-            Teams 会議に、
-            <br />
-            <span className={styles.headlineAccent}>AI を 1 人</span>
-            派遣する。
-          </h1>
-
-          <p className={styles.subhead}>
-            会議の流れを観測し、決定を構造化し、沈黙を活性化し、
-            <br />
-            必要なら音声で会議に介入する <strong>8 並列 AI agent</strong> システム。
-          </p>
-
-          <div className={styles.ctaRow}>
-            <Button
-              appearance="primary"
-              size="large"
-              icon={<Rocket24Regular />}
-              className={styles.ctaPrimary}
-              onClick={() => navigate('/new')}
-            >
-              Bot を派遣する
-            </Button>
-            <a
-              href="https://github.com/nvidia9875/Helmsman"
-              target="_blank"
-              rel="noreferrer"
-              className={styles.ctaSecondary}
-            >
-              <Code24Regular />
-              GitHub で見る
-            </a>
-          </div>
-
-          <div className={styles.ticker} aria-label="ライブ KPI">
-            <span className={styles.tickerItem}>
-              <span className={styles.tickerLabel}>per meeting</span>
-              <span className={styles.tickerValue}>
-                $
-                <CountUp
-                  value={ticking ? 0.03 : 0}
-                  fmt={(v) => v.toFixed(2)}
-                />
-              </span>
-            </span>
-            <span className={styles.tickerSep} />
-            <span className={styles.tickerItem}>
-              <span className={styles.tickerLabel}>decisions</span>
-              <span className={styles.tickerValue}>
-                <CountUp value={ticking ? 10 : 0} />
-              </span>
-            </span>
-            <span className={styles.tickerSep} />
-            <span className={styles.tickerItem}>
-              <span className={styles.tickerLabel}>topics decided</span>
-              <span className={styles.tickerValue}>
-                <CountUp value={ticking ? 5 : 0} />
-                <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>
-                  /5
-                </span>
-              </span>
-            </span>
-          </div>
+          <span>Helmsman · dispatch</span>
         </div>
 
-        <span className={styles.scrollHint} aria-hidden>
-          ↓ scroll
-        </span>
-      </section>
-
-      {/* ============ PILLARS ============ */}
-      <section
-        className={styles.section}
-        aria-labelledby="pillars-title"
-      >
-        <div className={styles.sectionInner}>
-          <RevealSection>
-            <div className={styles.sectionHeader}>
-              <span className={styles.sectionEyebrow}>WHY HELMSMAN</span>
-              <h2 id="pillars-title" className={styles.sectionTitle}>
-                議事録の次は、
-                <br />
-                <span className={styles.headlineAccent}>
-                  会議そのものを成功させる AI
-                </span>
-                。
-              </h2>
-              <p className={styles.sectionLede}>
-                Otter / Granola / Fathom は事後要約を完成させた。Helmsman は
-                <strong> 会議の最中に手を入れる</strong> 領域に踏み込む。
-                介入研究 (CHI 2025 OAI) を実運用化したのが本作。
-              </p>
-            </div>
-          </RevealSection>
-
-          <RevealSection>
-            <div className={styles.pillarsGrid}>
-              {PILLARS.map((p) => {
-                const klass =
-                  p.klass === 'pillarA'
-                    ? styles.pillarA
-                    : p.klass === 'pillarB'
-                      ? styles.pillarB
-                      : styles.pillarC;
-                return (
-                  <article
-                    key={p.title}
-                    className={mergeClasses(styles.pillar, klass)}
-                  >
-                    <div className={styles.pillarIcon}>{p.icon}</div>
-                    <div className={styles.pillarKpi}>
-                      <CountUp value={p.kpi} />
-                      <span className={styles.pillarKpiUnit}>{p.unit}</span>
-                    </div>
-                    <h3 className={styles.pillarTitle}>{p.title}</h3>
-                    <p className={styles.pillarBody}>{p.body}</p>
-                  </article>
-                );
-              })}
-            </div>
-          </RevealSection>
-        </div>
-      </section>
-
-      {/* ============ HOW IT WORKS ============ */}
-      <section className={styles.section} aria-labelledby="how-title">
-        <div className={styles.sectionInner}>
-          <RevealSection>
-            <div className={styles.sectionHeader}>
-              <span className={styles.sectionEyebrow}>HOW IT WORKS</span>
-              <h2 id="how-title" className={styles.sectionTitle}>
-                3 ステップで派遣。
-              </h2>
-              <p className={styles.sectionLede}>
-                セットアップは Teams 管理者操作 1 回のみ。それ以降は会議のたびに
-                <strong> URL を貼って派遣ボタンを押すだけ</strong>。
-              </p>
-            </div>
-          </RevealSection>
-
-          <RevealSection>
-            <div className={styles.steps}>
-              {STEPS.map((s) => (
-                <article key={s.index} className={styles.step}>
-                  <span className={styles.stepIndex}>STEP {s.index}</span>
-                  <h3 className={styles.stepTitle}>{s.title}</h3>
-                  <p className={styles.stepBody}>{s.body}</p>
-                </article>
-              ))}
-            </div>
-          </RevealSection>
-        </div>
-      </section>
-
-      {/* ============ FINAL CTA BAND ============ */}
-      <section className={styles.ctaBand} aria-labelledby="cta-title">
-        <RevealSection>
-          <div className={styles.ctaBandInner}>
-            <CompassNorthwestRegular
-              style={{
-                color: 'var(--accent-cyan)',
-                width: 36,
-                height: 36,
-              }}
-            />
-            <h2 id="cta-title" className={styles.ctaBandTitle}>
-              いまから 1 つ、Helmsman を試してみる。
-            </h2>
-            <p className={styles.ctaBandHint}>
-              10 分の試運転で約 ¥1。クレジットカード不要、ログイン任意。
-            </p>
-            <div className={styles.ctaRow}>
-              <Button
-                appearance="primary"
-                size="large"
-                icon={<ArrowRight24Regular />}
-                onClick={() => navigate('/new')}
-              >
-                Bot を派遣する
-              </Button>
-              <a
-                href="/insights"
-                className={styles.ctaSecondary}
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigate('/insights');
+        <div className={styles.inputRow}>
+          <div className={styles.urlInputWrap}>
+            <div className={styles.urlInputShell}>
+              <input
+                ref={inputRef}
+                className={styles.urlInput}
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="https://teams.microsoft.com/meet/..."
+                value={teamsUrl}
+                onChange={(e) => setTeamsUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && ready) dispatchMutation.mutate();
                 }}
-              >
-                利用状況を見る
-              </a>
+                aria-label="Teams 会議の URL"
+                aria-invalid={!urlEmpty && !urlValid}
+              />
+              <span className={`${styles.validDot} ${dotClass}`} aria-hidden />
             </div>
           </div>
-        </RevealSection>
+          <Button
+            appearance="primary"
+            size="large"
+            icon={
+              dispatchMutation.isPending ? <Spinner size="tiny" /> : <Rocket24Regular />
+            }
+            className={styles.dispatchBtn}
+            disabled={!ready}
+            onClick={() => dispatchMutation.mutate()}
+          >
+            {dispatchMutation.isPending ? '派遣中…' : '派遣'}
+          </Button>
+        </div>
+
+        {!urlEmpty && !urlValid && (
+          <p className={styles.errorText}>
+            Teams 会議 URL の形式を確認してください
+          </p>
+        )}
+        {dispatchMutation.isError && (
+          <p className={styles.errorText}>
+            派遣に失敗しました — {String(dispatchMutation.error)}
+          </p>
+        )}
+
+        <button
+          type="button"
+          className={styles.detailsToggle}
+          onClick={() => setShowDetails((s) => !s)}
+          aria-expanded={showDetails}
+          aria-controls="dispatch-details"
+        >
+          <span className={styles.detailsToggleLeft}>
+            <span>詳細設定</span>
+            <span style={{ color: 'var(--text-4)' }}>
+              · ゴール / モード / 時間 / グループ
+            </span>
+          </span>
+          {showDetails ? <ChevronUp20Regular /> : <ChevronDown20Regular />}
+        </button>
+
+        <div
+          id="dispatch-details"
+          className={`${styles.details} ${showDetails ? styles.detailsOpen : ''}`}
+        >
+          <div className={styles.detailsInner}>
+            <div className={styles.detailsBody}>
+              <Field label="AI ファシリテーター名">
+                <Input
+                  value={facilitatorName}
+                  onChange={(_, d) => setFacilitatorName(d.value)}
+                  placeholder="例: Helmsman"
+                />
+              </Field>
+              <Field label="ゴール (任意 — 入れると論点を分解)">
+                <Textarea
+                  value={goal}
+                  onChange={(_, d) => setGoal(d.value)}
+                  placeholder="例: 6 月 30 日のローンチ可否を決定する"
+                  rows={2}
+                />
+              </Field>
+              <div className={styles.detailsGrid}>
+                <Field label="モード">
+                  <Dropdown
+                    value={mode}
+                    selectedOptions={[mode]}
+                    onOptionSelect={(_, d) =>
+                      d.optionValue && setMode(d.optionValue as MeetingMode)
+                    }
+                  >
+                    {MODES.map((m) => (
+                      <Option key={m} value={m}>
+                        {m}
+                      </Option>
+                    ))}
+                  </Dropdown>
+                </Field>
+                <Field label="想定時間 (分)">
+                  <Input
+                    type="number"
+                    value={String(totalMinutes)}
+                    min={5}
+                    max={240}
+                    onChange={(_, d) =>
+                      setTotalMinutes(Math.max(5, Math.min(240, Number(d.value) || 60)))
+                    }
+                  />
+                </Field>
+              </div>
+              <Field label="グループ (任意 — 共有書類を AI に読ませる)">
+                <Dropdown
+                  placeholder="(なし — 単独で派遣)"
+                  value={
+                    groupId === NO_GROUP
+                      ? ''
+                      : groups?.find((g) => g.id === groupId)?.name ?? ''
+                  }
+                  selectedOptions={[groupId]}
+                  onOptionSelect={(_, d) => setGroupId(d.optionValue ?? NO_GROUP)}
+                >
+                  <Option value={NO_GROUP}>(なし — 単独で派遣)</Option>
+                  {(groups ?? []).map((g) => (
+                    <Option key={g.id} value={g.id}>
+                      {g.name}
+                    </Option>
+                  ))}
+                </Dropdown>
+              </Field>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.footerRow}>
+          <span>Enter キーで派遣</span>
+          <a className={styles.helpLink} href="/help">
+            Helmsman とは →
+          </a>
+        </div>
       </section>
-    </div>
+    </main>
   );
 }
