@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm fetch-face-model && vite",
-    "build": "pnpm fetch-face-model && tsc -b && vite build",
+    "dev": "node scripts/fetch-face-model.mjs && vite",
+    "build": "node scripts/fetch-face-model.mjs && tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
