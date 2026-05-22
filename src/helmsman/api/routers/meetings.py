@@ -12,6 +12,7 @@ from helmsman.agents import (
     CoverageTracker,
     DecisionCapture,
     DissentSurface,
+    EngagementAgent,
     GoalDecomposer,
     InterventionArbiter,
     MeetingReportGenerator,
@@ -547,6 +548,7 @@ async def tick(
     quiet = QuietActivator()
     dissent = DissentSurface()
     memory = MemoryRetriever()
+    engagement = EngagementAgent()
 
     # 文書 RAG: 文書付き会議 or グループ所属会議だと CoverageTracker に excerpt を流す
     doc_excerpts: str | None = None
@@ -571,6 +573,7 @@ async def tick(
         quiet.run(meeting, req.participants, meeting.topics),
         dissent.run(meeting, req.recent_utterances),
         memory.run(meeting, req.recent_utterances, usage_sink=meeting.usage),
+        engagement.run(meeting, req.recent_utterances),
         return_exceptions=True,
     )
 
@@ -588,6 +591,7 @@ async def tick(
     quiet_cand = _ok(results[3])
     dissent_cand = _ok(results[4])
     memory_cand = _ok(results[5])
+    engagement_cand = _ok(results[6])
 
     meeting.topics = updated_topics
     decision_topic, decision_cand = decision_result
@@ -621,6 +625,8 @@ async def tick(
         candidates.append(dissent_cand)
     if memory_cand:
         candidates.append(memory_cand)
+    if engagement_cand:
+        candidates.append(engagement_cand)
 
     # TimeKeeper (rule-based)
     tk = TimeKeeper().run(meeting)
@@ -628,6 +634,7 @@ async def tick(
         candidates.append(tk)
 
     # LLM 呼び出しの usage を Meeting に積み上げる
+    # engagement は LLM を呼ばないので last_usage が None、accumulate_usage が自然 skip
     _accumulate_usage(
         meeting.usage,
         [coverage, steering, decision_capture, quiet, dissent, memory],

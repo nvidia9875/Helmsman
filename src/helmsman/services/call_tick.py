@@ -50,6 +50,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         CoverageTracker,
         DecisionCapture,
         DissentSurface,
+        EngagementAgent,
         InterventionArbiter,
         MemoryRetriever,
         QuietActivator,
@@ -91,6 +92,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     quiet = QuietActivator()
     dissent = DissentSurface()
     memory = MemoryRetriever()
+    engagement = EngagementAgent()
     recent = session.utterances[-15:]
 
     # 文書 RAG (DOC-5): bot 会議でも CoverageTracker に excerpt を渡す
@@ -115,6 +117,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
         quiet.run(meeting, participants, meeting.topics),
         dissent.run(meeting, recent),
         memory.run(meeting, recent, usage_sink=meeting.usage),
+        engagement.run(meeting, recent),
         return_exceptions=True,
     )
 
@@ -131,6 +134,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     quiet_cand = _ok(results[3])
     dissent_cand = _ok(results[4])
     memory_cand = _ok(results[5])
+    engagement_cand = _ok(results[6])
 
     # Phase 7: DecisionCapture 確定時、write-through で Cosmos + Search に保存
     if decision_topic is not None and decision_cand is not None:
@@ -151,7 +155,7 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
     candidates: list[InterventionCandidate] = []
     # 議論方向確認 (Steering) は設定で OFF にできる
     for c in (steering_cand if meeting.steering_enabled else None, decision_cand,
-              quiet_cand, dissent_cand, memory_cand):
+              quiet_cand, dissent_cand, memory_cand, engagement_cand):
         if c:
             candidates.append(c)
     tk = TimeKeeper().run(meeting)

@@ -71,9 +71,16 @@ class InterventionArbiter:
             return None
 
         # 2) 優先度ソート
-        candidates.sort(
-            key=lambda c: self.PRIORITY.get(c.agent, 0), reverse=True
-        )
+        # Phase 6: EngagementAgent の "visible_confusion_with_silence" は通常 55 だが
+        # 個別ケアの即時性が高いので +20 boost (Steering 70 と並ぶ)。
+        # nod_burst_consensus / low_engagement_stuck_topic はそのまま 55 のまま。
+        def _effective_priority(c: InterventionCandidate) -> int:
+            base = self.PRIORITY.get(c.agent, 0)
+            if c.agent == "EngagementAgent" and c.reason == "visible_confusion_with_silence":
+                return base + 20
+            return base
+
+        candidates.sort(key=_effective_priority, reverse=True)
 
         ref_now = now or datetime.now(UTC)
         for c in candidates:

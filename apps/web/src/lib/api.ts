@@ -114,6 +114,46 @@ export interface DecisionSearchRequest {
   within_days?: number;
 }
 
+// ---------- Phase 6: Face Signals (マルチモーダル) ----------
+
+export interface FaceWindowDto {
+  window_start_ms: number;
+  sample_count: number;
+  nod_count: number;
+  confusion: number;
+  engagement: number;
+  face_visible_ratio: number;
+}
+
+export interface FaceSignalBatchDto {
+  meeting_id: string;
+  organizer_id: string;
+  participant_id: string;
+  client_sent_at_ms?: number | null;
+  windows: FaceWindowDto[];
+}
+
+export interface FaceSignalAcceptResponse {
+  accepted: boolean;
+  windows_received: number;
+  buffered_count: number;
+}
+
+export interface FaceSignalSummary {
+  sample_count: number;
+  participants: number;
+  total_nods: number;
+  mean_confusion: number;
+  mean_engagement: number;
+  high_confusion_count: number;
+  low_engagement_count: number;
+}
+
+export interface FaceSignalRecentResponse {
+  summary: FaceSignalSummary;
+  within_ms: number;
+}
+
 export interface TimekeeperAlert {
   id: string;
   minutes_from_start: number;
@@ -590,4 +630,23 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(req),
     }),
+
+  // ---------- Phase 6: Face Signals (マルチモーダル) ----------
+  ingestFaceSignals: (
+    meetingId: string,
+    organizerId: string,
+    batch: FaceSignalBatchDto,
+  ) =>
+    request<FaceSignalAcceptResponse>(
+      `/meetings/${meetingId}/face-signals?organizer_id=${encodeURIComponent(organizerId)}`,
+      { method: 'POST', body: JSON.stringify(batch) },
+    ),
+  getRecentFaceSignals: (
+    meetingId: string,
+    organizerId: string,
+    withinMs = 300_000,
+  ) =>
+    request<FaceSignalRecentResponse>(
+      `/meetings/${meetingId}/face-signals/recent?organizer_id=${encodeURIComponent(organizerId)}&within_ms=${withinMs}`,
+    ),
 };

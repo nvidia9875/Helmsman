@@ -12,7 +12,15 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from helmsman.api.routers import bot, decisions, documents, groups, health, meetings
+from helmsman.api.routers import (
+    bot,
+    decisions,
+    documents,
+    face,
+    groups,
+    health,
+    meetings,
+)
 from helmsman.core.config import get_settings
 from helmsman.core.logging import (
     configure_logging,
@@ -72,6 +80,7 @@ app.include_router(documents.router)
 app.include_router(groups.router)
 app.include_router(bot.router)
 app.include_router(decisions.router)
+app.include_router(face.router)
 
 
 @app.exception_handler(Exception)
