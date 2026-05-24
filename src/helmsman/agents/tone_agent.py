@@ -19,7 +19,6 @@ from helmsman.models.intervention import InterventionCandidate
 from helmsman.models.meeting import Meeting
 from helmsman.models.participant import Participant
 from helmsman.models.tone import (
-    EMOTION_LABELS,
     EmotionLabel,
     UtteranceTone,
 )

@@ -43,7 +43,7 @@ class DecisionListResponse(BaseModel):
     captured_at: str
 
     @classmethod
-    def from_decision(cls, d: Decision) -> "DecisionListResponse":
+    def from_decision(cls, d: Decision) -> DecisionListResponse:
         return cls(
             id=d.id,
             meeting_id=d.meeting_id,

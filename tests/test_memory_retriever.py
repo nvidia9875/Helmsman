@@ -5,7 +5,7 @@ embed_texts と search_decisions を mock し、LLM (MINI) 経由の選定ロジ
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -166,7 +166,12 @@ async def test_run_excludes_same_meeting_decisions(monkeypatch: pytest.MonkeyPat
     agent = MemoryRetriever()
 
     # ヒットは同一会議の decision のみ
-    hits = [DecisionHit(decision=_decision(decision_id="m-current:t1", meeting_id="m-current"), score=0.9)]
+    hits = [
+        DecisionHit(
+            decision=_decision(decision_id="m-current:t1", meeting_id="m-current"),
+            score=0.9,
+        )
+    ]
     monkeypatch.setattr(
         "helmsman.agents.memory_retriever.embed_texts",
         AsyncMock(return_value=([[1.0, 0.0]], None)),

@@ -76,7 +76,9 @@ def test_touch_updates_timestamp():
 
 
 def test_decision_text_required():
-    with pytest.raises(Exception):
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
         Decision(
             id="m1:t1",
             organizer_id="u",
