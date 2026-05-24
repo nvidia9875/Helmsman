@@ -54,6 +54,27 @@ class DecisionRepository:
         except CosmosResourceNotFoundError:
             return False
 
+    async def _query_with_fallback(
+        self, query: str, params: list[dict], partition_key: str
+    ) -> list[Decision]:
+        """共通 query 実行 — container 未作成 or 該当なしは空 list を返す。
+
+        Cosmos の `decisions` container がまだ作成されていない初期テナントや、
+        該当 organizer の decision が 1 件もない (= リソース未生成) 場合、
+        query_items が `CosmosResourceNotFoundError` を投げてくる。
+        UI 側は「履歴ゼロ」を空状態で見せたいだけなので、500 ではなく [] に変換する。
+        """
+        container = await self._get_container()
+        items: list[Decision] = []
+        try:
+            async for raw in container.query_items(
+                query=query, parameters=params, partition_key=partition_key
+            ):
+                items.append(Decision.model_validate(raw))
+        except CosmosResourceNotFoundError:
+            return []
+        return items
+
     async def list_by_organizer(
         self,
         organizer_id: str,
@@ -67,7 +88,6 @@ class DecisionRepository:
         ``within_days`` 指定時は ``captured_at`` でフィルタ (デフォルト 90 日)。
         MemoryRetriever のフォールバック path (numpy cosine) はこの一覧を全件 scan する。
         """
-        container = await self._get_container()
         params: list[dict] = [{"name": "@oid", "value": organizer_id}]
         where = ["c.organizer_id = @oid"]
         if within_days is not None:
@@ -79,12 +99,7 @@ class DecisionRepository:
             f"SELECT * FROM c WHERE {' AND '.join(where)} "
             "ORDER BY c.captured_at DESC OFFSET 0 LIMIT @lim"
         )
-        items: list[Decision] = []
-        async for raw in container.query_items(
-            query=query, parameters=params, partition_key=organizer_id
-        ):
-            items.append(Decision.model_validate(raw))
-        return items
+        return await self._query_with_fallback(query, params, organizer_id)
 
     async def list_by_series(
         self, series_id: str, organizer_id: str, limit: int = 200
@@ -93,7 +108,6 @@ class DecisionRepository:
 
         partition は organizer_id 1 つで済む (異 organizer 同 series は想定しない)。
         """
-        container = await self._get_container()
         query = (
             "SELECT * FROM c "
             "WHERE c.organizer_id = @oid AND c.series_id = @sid "
@@ -104,18 +118,12 @@ class DecisionRepository:
             {"name": "@sid", "value": series_id},
             {"name": "@lim", "value": limit},
         ]
-        items: list[Decision] = []
-        async for raw in container.query_items(
-            query=query, parameters=params, partition_key=organizer_id
-        ):
-            items.append(Decision.model_validate(raw))
-        return items
+        return await self._query_with_fallback(query, params, organizer_id)
 
     async def list_by_group(
         self, group_id: str, organizer_id: str, limit: int = 200
     ) -> list[Decision]:
         """同グループの decision を新しい順に。"""
-        container = await self._get_container()
         query = (
             "SELECT * FROM c "
             "WHERE c.organizer_id = @oid AND c.group_id = @gid "
@@ -126,18 +134,12 @@ class DecisionRepository:
             {"name": "@gid", "value": group_id},
             {"name": "@lim", "value": limit},
         ]
-        items: list[Decision] = []
-        async for raw in container.query_items(
-            query=query, parameters=params, partition_key=organizer_id
-        ):
-            items.append(Decision.model_validate(raw))
-        return items
+        return await self._query_with_fallback(query, params, organizer_id)
 
     async def list_by_meeting(
         self, meeting_id: str, organizer_id: str
     ) -> list[Decision]:
         """特定会議の decision (cross-partition だが organizer 1 つに絞れる)。"""
-        container = await self._get_container()
         query = (
             "SELECT * FROM c "
             "WHERE c.organizer_id = @oid AND c.meeting_id = @mid "
@@ -147,9 +149,4 @@ class DecisionRepository:
             {"name": "@oid", "value": organizer_id},
             {"name": "@mid", "value": meeting_id},
         ]
-        items: list[Decision] = []
-        async for raw in container.query_items(
-            query=query, parameters=params, partition_key=organizer_id
-        ):
-            items.append(Decision.model_validate(raw))
-        return items
+        return await self._query_with_fallback(query, params, organizer_id)
