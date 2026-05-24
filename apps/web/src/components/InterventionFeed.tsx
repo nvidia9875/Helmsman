@@ -162,13 +162,13 @@ function fmtTime(iso: string): string {
   });
 }
 
-/** agent 名 → 視覚的な絵文字バッジ。Phase 6/7 の新 agent を分離するため。 */
+/** agent 名 → 視覚的な絵文字バッジ。Phase 7/8 の新 agent を分離するため。 */
 function agentIcon(agent: string): string {
   switch (agent) {
     case 'MemoryRetriever':
       return '📜';
-    case 'EngagementAgent':
-      return '👀';
+    case 'ToneAgent':
+      return '🌡';
     case 'DecisionCapture':
       return '✓';
     case 'DissentSurface':

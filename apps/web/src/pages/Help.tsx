@@ -522,7 +522,7 @@ const STEPS = [
   {
     index: '02',
     title: 'Helmsman 🧭 が会議に参加',
-    body: '外部参加者として join → Azure Speech で文字起こし → 10 agent (会議横断記憶・顔シグナル含む) が並列に観測。L1/L2/L3 介入を chair の Dashboard に流す。',
+    body: '外部参加者として join → Azure Speech で文字起こし → 9 agent (会議横断記憶・発言感情含む) が並列に観測。L1/L2/L3 介入を chair の Dashboard に流す。',
   },
   {
     index: '03',
@@ -532,7 +532,7 @@ const STEPS = [
 ];
 
 // 星座: hero に散らばせる pulsing dots の位置と animation-delay。
-// 各点 = 1 agent (現在 10 個: 既存 8 + MemoryRetriever (Phase 7) + EngagementAgent (Phase 6))
+// 各点 = 1 agent (現在 10 個: 既存 7 + MemoryRetriever (Phase 7) + ToneAgent (Phase 8) + Arbiter)
 const STARS: { top: string; left: string; delay: string }[] = [
   { top: '18%', left: '12%', delay: '0s' },
   { top: '32%', left: '88%', delay: '0.6s' },

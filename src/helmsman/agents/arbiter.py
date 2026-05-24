@@ -34,7 +34,7 @@ class InterventionArbiter:
         "SteeringAgent": 70,
         "MemoryRetriever": 65,  # Phase 7: Steering と Dissent の間
         "DissentSurface": 60,
-        "EngagementAgent": 55,  # Phase 6: Dissent と Quiet の間
+        "ToneAgent": 55,  # 感情シグナル: Dissent と Quiet の間
         "QuietActivator": 50,
         "DevilsAdvocate": 40,  # 将来分
         "GoalDecomposer": 30,  # 通常は decide 直後のみ
@@ -71,12 +71,11 @@ class InterventionArbiter:
             return None
 
         # 2) 優先度ソート
-        # Phase 6: EngagementAgent の "visible_confusion_with_silence" は通常 55 だが
-        # 個別ケアの即時性が高いので +20 boost (Steering 70 と並ぶ)。
-        # nod_burst_consensus / low_engagement_stuck_topic はそのまま 55 のまま。
+        # ToneAgent の "tense_with_silence" は通常 55 だが、個別ケアの即時性が
+        # 高いので +20 boost (Steering 70 と並ぶ)。consensus / stuck はそのまま 55。
         def _effective_priority(c: InterventionCandidate) -> int:
             base = self.PRIORITY.get(c.agent, 0)
-            if c.agent == "EngagementAgent" and c.reason == "visible_confusion_with_silence":
+            if c.agent == "ToneAgent" and c.reason == "tense_with_silence":
                 return base + 20
             return base
 

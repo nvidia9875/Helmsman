@@ -10,11 +10,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.svg'],
       workbox: {
-        // Phase 6: MediaPipe (face_landmarker.task ~3.6MB / WASM) は
-        // precache から除外し、初回利用時の lazy fetch + HTTP キャッシュに任せる。
-        // PWA バンドルが肥大化するのを避けつつ、main app は引き続きオフライン対応。
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globIgnores: ['**/mediapipe/**'],
       },
       manifest: {
         name: 'Helmsman',

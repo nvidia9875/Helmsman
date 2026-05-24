@@ -1,8 +1,7 @@
 import { makeStyles, mergeClasses } from '@fluentui/react-components';
-import { useQuery } from '@tanstack/react-query';
 
 import { StatusDot, type StatusKind } from '@/components/primitives/StatusDot';
-import { api, type Meeting, type TopicState } from '@/lib/api';
+import type { Meeting, TopicState } from '@/lib/api';
 
 const useStyles = makeStyles({
   root: {
@@ -176,25 +175,13 @@ function stateDot(state: TopicState): StatusKind {
 
 interface Props {
   meeting: Meeting;
-  organizerId: string;
 }
 
-export function Sidebar({ meeting, organizerId }: Props) {
+export function Sidebar({ meeting }: Props) {
   const styles = useStyles();
   const topics = meeting.topics;
   const decidedCount = topics.filter((t) => t.state === 'decided').length;
   const progressPct = topics.length === 0 ? 0 : Math.round((decidedCount / topics.length) * 100);
-
-  // Phase 6: face signal ライブサマリ (顔シグナルが流れて来てる時のみ表示)
-  const faceQuery = useQuery({
-    queryKey: ['face-signals-recent', meeting.id, organizerId],
-    queryFn: () => api.getRecentFaceSignals(meeting.id, organizerId, 180_000),
-    refetchInterval: 4000,
-    enabled: !!meeting.id,
-    retry: false,
-  });
-  const face = faceQuery.data?.summary;
-  const hasFaceSignals = face && face.sample_count > 0;
 
   return (
     <aside className={styles.root}>
@@ -253,29 +240,6 @@ export function Sidebar({ meeting, organizerId }: Props) {
           </div>
         )}
       </div>
-
-      {hasFaceSignals && (
-        <div>
-          <div className={styles.sectionHeader}>
-            <h3 className={styles.sectionTitle}>Face Signals · live</h3>
-            <span className={styles.sectionCount}>
-              {face!.participants} 人 / 3 min
-            </span>
-          </div>
-          <div className={styles.sep} />
-          <div className={styles.legend}>
-            <span className={styles.legendItem}>
-              👀 confusion {(face!.mean_confusion * 100).toFixed(0)}%
-            </span>
-            <span className={styles.legendItem}>
-              ✓ engagement {(face!.mean_engagement * 100).toFixed(0)}%
-            </span>
-            <span className={styles.legendItem}>
-              ✦ nods {face!.total_nods}
-            </span>
-          </div>
-        </div>
-      )}
 
       <div>
         <h3 className={styles.sectionTitle}>Legend</h3>

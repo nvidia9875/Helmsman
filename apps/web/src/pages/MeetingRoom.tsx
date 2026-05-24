@@ -20,6 +20,7 @@ import { MeetingPulse } from '@/components/MeetingPulse';
 import { MeetingSettings } from '@/components/MeetingSettings';
 import { MemoryEchoCard } from '@/components/memory/MemoryEchoCard';
 import { OnboardingSteps } from '@/components/OnboardingSteps';
+import { ParticipantsPanel } from '@/components/ParticipantsPanel';
 import { ReportPanel } from '@/components/ReportPanel';
 import { RightNowStrip } from '@/components/RightNowStrip';
 import { SoloMicCard } from '@/components/SoloMicCard';
@@ -334,6 +335,8 @@ export function MeetingRoom() {
 
         <MemoryEchoCard meeting={meeting} organizerId={organizerId} />
 
+        <ParticipantsPanel meetingId={meeting.id} organizerId={organizerId} />
+
         <div className={styles.feedGrid}>
           <InterventionFeed meeting={meeting} organizerId={organizerId} />
           <LiveTranscript meetingId={meeting.id} organizerId={organizerId} />
@@ -357,7 +360,7 @@ export function MeetingRoom() {
         </div>
       </div>
 
-      <Sidebar meeting={meeting} organizerId={organizerId} />
+      <Sidebar meeting={meeting} />
     </div>
   );
 }

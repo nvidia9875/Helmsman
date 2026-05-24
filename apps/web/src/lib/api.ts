@@ -114,44 +114,44 @@ export interface DecisionSearchRequest {
   within_days?: number;
 }
 
-// ---------- Phase 6: Face Signals (マルチモーダル) ----------
+// ---------- Phase 8: Tone (発言感情) ----------
 
-export interface FaceWindowDto {
-  window_start_ms: number;
-  sample_count: number;
-  nod_count: number;
-  confusion: number;
-  engagement: number;
-  face_visible_ratio: number;
+export type EmotionLabel =
+  | 'joy'
+  | 'agreement'
+  | 'curiosity'
+  | 'concern'
+  | 'frustration'
+  | 'neutral';
+
+export type MeetingMood = 'aligned' | 'energetic' | 'tense' | 'stuck';
+
+export interface UtteranceTone {
+  utterance_id: string;
+  speaker_id: string;
+  speaker_name: string | null;
+  emotion: EmotionLabel;
+  sentiment: number;
+  classified_at: string;
 }
 
-export interface FaceSignalBatchDto {
+export interface ParticipantMood {
+  speaker_id: string;
+  speaker_name: string | null;
+  sample_count: number;
+  dominant_emotion: EmotionLabel;
+  sentiment_avg: number;
+  recent_emotions: EmotionLabel[];
+}
+
+export interface MeetingToneSummary {
   meeting_id: string;
-  organizer_id: string;
-  participant_id: string;
-  client_sent_at_ms?: number | null;
-  windows: FaceWindowDto[];
-}
-
-export interface FaceSignalAcceptResponse {
-  accepted: boolean;
-  windows_received: number;
-  buffered_count: number;
-}
-
-export interface FaceSignalSummary {
-  sample_count: number;
-  participants: number;
-  total_nods: number;
-  mean_confusion: number;
-  mean_engagement: number;
-  high_confusion_count: number;
-  low_engagement_count: number;
-}
-
-export interface FaceSignalRecentResponse {
-  summary: FaceSignalSummary;
-  within_ms: number;
+  utterance_count: number;
+  participant_moods: ParticipantMood[];
+  per_utterance: UtteranceTone[];
+  overall_mood: MeetingMood;
+  overall_sentiment: number;
+  last_updated: string;
 }
 
 export interface TimekeeperAlert {
@@ -587,6 +587,7 @@ export const api = {
     ),
 
   // ---------- Reports ----------
+  // (Phase 6 顔シグナル API は撤去済 — 文脈/音声ベースの感情は Phase 2 ToneAgent で再構築)
   generateReport: (
     meetingId: string,
     organizerId: string,
@@ -631,22 +632,9 @@ export const api = {
       body: JSON.stringify(req),
     }),
 
-  // ---------- Phase 6: Face Signals (マルチモーダル) ----------
-  ingestFaceSignals: (
-    meetingId: string,
-    organizerId: string,
-    batch: FaceSignalBatchDto,
-  ) =>
-    request<FaceSignalAcceptResponse>(
-      `/meetings/${meetingId}/face-signals?organizer_id=${encodeURIComponent(organizerId)}`,
-      { method: 'POST', body: JSON.stringify(batch) },
-    ),
-  getRecentFaceSignals: (
-    meetingId: string,
-    organizerId: string,
-    withinMs = 300_000,
-  ) =>
-    request<FaceSignalRecentResponse>(
-      `/meetings/${meetingId}/face-signals/recent?organizer_id=${encodeURIComponent(organizerId)}&within_ms=${withinMs}`,
+  // ---------- Phase 8: Tone (発言感情) ----------
+  getMeetingTone: (meetingId: string, organizerId: string) =>
+    request<MeetingToneSummary>(
+      `/meetings/${meetingId}/tone?organizer_id=${encodeURIComponent(organizerId)}`,
     ),
 };

@@ -20,9 +20,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { FaceCaptureCard } from '@/components/face/FaceCaptureCard';
 import { useBrowserSTT } from '@/hooks/useBrowserSTT';
-import { useFaceSignalUploader } from '@/hooks/useFaceSignalUploader';
 import { useUtteranceLog } from '@/hooks/useUtteranceLog';
 import { api, type Meeting } from '@/lib/api';
 import { useIdentity } from '@/lib/store';
@@ -168,16 +166,6 @@ export function SoloMicCard({ meeting, organizerId }: Props) {
 
   const stt = useBrowserSTT('ja-JP', (finalText) => append(finalText));
 
-  // 顔シグナルアップローダ — FaceCaptureCard が onFrame を流し、enabled=true の
-  // 間だけ 4 秒 batch で POST する。FaceCaptureCard 側の OFF/ON は useFaceSignals
-  // が制御するので、ここでは常に enabled=true で OK (frame が流れて来なければ no-op)。
-  const faceUploader = useFaceSignalUploader({
-    meetingId: meeting.id,
-    organizerId,
-    participantId: userId,
-    enabled: true,
-  });
-
   const tickMutation = useMutation({
     mutationFn: () =>
       api.tick(meeting.id, organizerId, {
@@ -311,9 +299,6 @@ export function SoloMicCard({ meeting, organizerId }: Props) {
           <p className={styles.interventionBody}>{lastIntervention.content}</p>
         </div>
       )}
-
-      {/* Phase 6: Solo モードに顔シグナル opt-in を埋め込む */}
-      <FaceCaptureCard onFrame={faceUploader.onFrame} />
     </section>
   );
 }

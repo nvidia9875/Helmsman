@@ -1,9 +1,10 @@
 import { makeStyles } from '@fluentui/react-components';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { StatusDot } from '@/components/primitives/StatusDot';
-import { api } from '@/lib/api';
+import { api, type EmotionLabel } from '@/lib/api';
+import { EMOTION_STYLE } from '@/lib/tone';
 
 const useStyles = makeStyles({
   root: {
@@ -66,6 +67,31 @@ const useStyles = makeStyles({
     fontVariantNumeric: 'tabular-nums',
     paddingTop: '2px',
   },
+  speakerLine: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '2px',
+  },
+  speaker: {
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    color: 'var(--text-3)',
+  },
+  emotionBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '1px 7px',
+    borderRadius: '999px',
+    fontSize: '10px',
+    fontFamily: 'var(--font-mono)',
+    letterSpacing: '0.04em',
+    border: '1px solid currentColor',
+    backgroundColor: 'transparent',
+  },
   text: {
     color: 'var(--text-1)',
     margin: 0,
@@ -110,6 +136,23 @@ export function LiveTranscript({ meetingId, organizerId }: Props) {
     refetchInterval: 3000,
   });
 
+  // 感情ラベル: tick で ToneAgent が分類した結果を polling
+  const { data: tone } = useQuery({
+    queryKey: ['tone', meetingId, organizerId],
+    queryFn: () => api.getMeetingTone(meetingId, organizerId),
+    refetchInterval: 4000,
+    retry: false,
+  });
+
+  // utterance_id → emotion / speaker_name 辞書 (lookup を O(1) に)
+  const toneByUtterance = useMemo(() => {
+    const m = new Map<string, { emotion: EmotionLabel; speakerName: string | null }>();
+    tone?.per_utterance?.forEach((t) =>
+      m.set(t.utterance_id, { emotion: t.emotion, speakerName: t.speaker_name }),
+    );
+    return m;
+  }, [tone]);
+
   const feedRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
@@ -141,15 +184,34 @@ export function LiveTranscript({ meetingId, organizerId }: Props) {
         </div>
       ) : (
         <div className={styles.feed} ref={feedRef}>
-          {data.utterances.map((u, i) => (
-            <div
-              key={u.id}
-              className={`${styles.row}${i === data.utterances.length - 1 ? ` ${styles.rowLast}` : ''}`}
-            >
-              <span className={styles.ts}>{fmtTime(u.started_at)}</span>
-              <p className={styles.text}>{u.text}</p>
-            </div>
-          ))}
+          {data.utterances.map((u, i) => {
+            const t = toneByUtterance.get(u.id);
+            const style = t ? EMOTION_STYLE[t.emotion] : null;
+            const speakerLabel = t?.speakerName || u.speaker_id.slice(0, 8);
+            return (
+              <div
+                key={u.id}
+                className={`${styles.row}${i === data.utterances.length - 1 ? ` ${styles.rowLast}` : ''}`}
+              >
+                <span className={styles.ts}>{fmtTime(u.started_at)}</span>
+                <div>
+                  <div className={styles.speakerLine}>
+                    <span className={styles.speaker}>{speakerLabel}</span>
+                    {style && (
+                      <span
+                        className={styles.emotionBadge}
+                        style={{ color: style.color }}
+                        aria-label={`感情: ${style.label}`}
+                      >
+                        {style.emoji} {style.label}
+                      </span>
+                    )}
+                  </div>
+                  <p className={styles.text}>{u.text}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

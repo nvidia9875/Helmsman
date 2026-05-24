@@ -16,10 +16,10 @@ from helmsman.api.routers import (
     bot,
     decisions,
     documents,
-    face,
     groups,
     health,
     meetings,
+    tone,
 )
 from helmsman.core.config import get_settings
 from helmsman.core.logging import (
@@ -80,7 +80,7 @@ app.include_router(documents.router)
 app.include_router(groups.router)
 app.include_router(bot.router)
 app.include_router(decisions.router)
-app.include_router(face.router)
+app.include_router(tone.router)
 
 
 @app.exception_handler(Exception)
