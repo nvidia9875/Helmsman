@@ -150,7 +150,34 @@ class InterventionArbiter:
         if c.allowed_modes and meeting.mode.value not in c.allowed_modes:
             return False
 
+        # 内容重複の抑制: 直近に配信した介入とほぼ同一内容なら出さない。
+        # AGGRESSIVE で頻度が上がると DecisionCapture が同じ決定を毎 tick 再 announce
+        # したり Steering が同じ nudge を繰り返すため、near-dup を弾く。
+        if self._is_dup_content(c.content, meeting):
+            return False
+
         return True
+
+    @staticmethod
+    def _norm_for_dup(s: str) -> str:
+        import re as _re
+        # 空白・句読点を除去して比較用に正規化 (句読点違いの near-dup も拾う)
+        return _re.sub(r"[\s、。，．,.!?！？・:：]+", "", s)
+
+    def _is_dup_content(self, content: str, meeting: Meeting) -> bool:
+        """直近に配信した介入とほぼ同一内容かを判定 (difflib 類似度 >= 0.85)。"""
+        import difflib
+
+        target = self._norm_for_dup(content)
+        if not target:
+            return False
+        for d in meeting.delivered_interventions[-8:]:
+            prev = self._norm_for_dup(getattr(d, "content", "") or "")
+            if not prev:
+                continue
+            if difflib.SequenceMatcher(None, target, prev).ratio() >= 0.85:
+                return True
+        return False
 
     def _intervention_level(
         self, c: InterventionCandidate, meeting: Meeting
