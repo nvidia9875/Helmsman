@@ -507,9 +507,7 @@ const useStyles = makeStyles({
 export function Landing() {
   const styles = useStyles();
   const navigate = useNavigate();
-  const { userId, displayName, setName } = useIdentity();
-  const initialName =
-    displayName && displayName !== 'Anonymous' ? displayName : DEFAULT_FACILITATOR_NAME;
+  const { userId } = useIdentity();
 
   const [teamsUrl, setTeamsUrl] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -517,7 +515,9 @@ export function Landing() {
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
   const [groupId, setGroupId] = useState<string>(NO_GROUP);
-  const [facilitatorName, setFacilitatorName] = useState(initialName);
+  // facilitator_name は AI の呼称専用 (常に "Helmsman" 起点)。
+  // ユーザーの displayName とは独立に管理する。
+  const [facilitatorName, setFacilitatorName] = useState(DEFAULT_FACILITATOR_NAME);
 
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -544,7 +544,9 @@ export function Landing() {
         facilitator_name: facilitatorName.trim() || null,
       }),
     onSuccess: (meeting) => {
-      if (facilitatorName) setName(facilitatorName);
+      // facilitator_name は AI の呼称、ユーザーの displayName とは別管理。
+      // 旧コードは setName(facilitatorName) で displayName を AI 名で上書きしていたが、
+      // これが「ボットちゃんが残り続ける」副作用の原因だったので削除。
       navigate(`/m/${meeting.id}?organizer_id=${encodeURIComponent(userId)}`);
     },
   });

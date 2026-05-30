@@ -170,8 +170,10 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
   const [expanded, setExpanded] = useState(hasAnySetting);
 
   // meeting が外から再 fetch されたら sync (派遣直後など)
+  // facilitator_name が null/空文字なら "Helmsman" にフォールバック
+  // (初期 mount の useState と一貫した default で、ポーリングで空に戻る現象を防ぐ)
   useEffect(() => {
-    setFacilitator(meeting.facilitator_name ?? '');
+    setFacilitator(meeting.facilitator_name ?? 'Helmsman');
     setSteering(meeting.steering_enabled);
     setAlerts(meeting.timekeeper_alerts.map(toDraft));
   }, [meeting.id, meeting.facilitator_name, meeting.steering_enabled, meeting.timekeeper_alerts]);
