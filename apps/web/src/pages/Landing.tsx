@@ -27,7 +27,6 @@ import { useIdentity } from '@/lib/store';
 
 const NO_GROUP = '__none__';
 const TEAMS_URL_PATTERN = /^https:\/\/teams\.microsoft\.com\/(.+meetup-join|meet\/\d+)/;
-const DEFAULT_FACILITATOR_NAME = 'Helmsman';
 const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '1on1', 'Kickoff'];
 
 const useStyles = makeStyles({
@@ -515,9 +514,6 @@ export function Landing() {
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
   const [groupId, setGroupId] = useState<string>(NO_GROUP);
-  // facilitator_name は AI の呼称専用 (常に "Helmsman" 起点)。
-  // ユーザーの displayName とは独立に管理する。
-  const [facilitatorName, setFacilitatorName] = useState(DEFAULT_FACILITATOR_NAME);
 
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -541,12 +537,8 @@ export function Landing() {
         total_minutes: totalMinutes,
         teams_meeting_url: teamsUrl.trim() || null,
         group_id: groupId === NO_GROUP ? null : groupId,
-        facilitator_name: facilitatorName.trim() || null,
       }),
     onSuccess: (meeting) => {
-      // facilitator_name は AI の呼称、ユーザーの displayName とは別管理。
-      // 旧コードは setName(facilitatorName) で displayName を AI 名で上書きしていたが、
-      // これが「ボットちゃんが残り続ける」副作用の原因だったので削除。
       navigate(`/m/${meeting.id}?organizer_id=${encodeURIComponent(userId)}`);
     },
   });
@@ -554,8 +546,7 @@ export function Landing() {
   const urlTrimmed = teamsUrl.trim();
   const urlValid = TEAMS_URL_PATTERN.test(urlTrimmed);
   const urlEmpty = urlTrimmed.length === 0;
-  const facilitatorOk = facilitatorName.trim().length > 0;
-  const ready = urlValid && facilitatorOk && !dispatchMutation.isPending;
+  const ready = urlValid && !dispatchMutation.isPending;
 
   const dotClass = urlEmpty
     ? styles.validDotPending
@@ -647,23 +638,6 @@ export function Landing() {
         >
           <div className={styles.detailsInner}>
             <div className={styles.detailsBody}>
-              {/* AI ファシリテーター名 */}
-              <div className={styles.fieldGroup}>
-                <label className={styles.fieldLabel} htmlFor="d-facilitator">
-                  <span>AI ファシリテーター名</span>
-                </label>
-                <div className={styles.fieldShell}>
-                  <input
-                    id="d-facilitator"
-                    className={styles.fieldInput}
-                    value={facilitatorName}
-                    onChange={(e) => setFacilitatorName(e.target.value)}
-                    placeholder="例: Helmsman"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-
               {/* ゴール */}
               <div className={styles.fieldGroup}>
                 <label className={styles.fieldLabel} htmlFor="d-goal">

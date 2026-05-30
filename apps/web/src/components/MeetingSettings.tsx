@@ -9,7 +9,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Button,
-  Field,
   Input,
   Spinner,
   Switch,
@@ -158,14 +157,13 @@ type DraftAlert = {
 export function MeetingSettings({ meeting, organizerId }: Props) {
   const styles = useStyles();
   const queryClient = useQueryClient();
-  const [facilitator, setFacilitator] = useState(meeting.facilitator_name ?? 'Helmsman');
   const [steering, setSteering] = useState(meeting.steering_enabled);
   const [alerts, setAlerts] = useState<DraftAlert[]>(
     meeting.timekeeper_alerts.map(toDraft),
   );
   // 折りたたみ: 設定済 (alert あり or facilitator あり) なら開く、無ければ畳む
   const hasAnySetting =
-    !!meeting.facilitator_name || meeting.timekeeper_alerts.length > 0 ||
+    meeting.timekeeper_alerts.length > 0 ||
     !meeting.steering_enabled;
   const [expanded, setExpanded] = useState(hasAnySetting);
 
@@ -174,7 +172,6 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
   // alert / 名前が毎回上書きされ「保存できない(編集が消える)」現象になるため、
   // 依存は meeting.id のみ。保存成功時は onSuccess で明示的に同期する。
   useEffect(() => {
-    setFacilitator(meeting.facilitator_name ?? 'Helmsman');
     setSteering(meeting.steering_enabled);
     setAlerts(meeting.timekeeper_alerts.map(toDraft));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +180,6 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
   const save = useMutation({
     mutationFn: () =>
       api.updateSettings(meeting.id, organizerId, {
-        facilitator_name: facilitator.trim() || null,
         steering_enabled: steering,
         timekeeper_alerts: alerts.map((a) => ({
           id: a.id ?? null,
@@ -194,7 +190,6 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
       }),
     onSuccess: (updated) => {
       // 保存後の正値(新規 alert には server が id を採番)でローカルを同期 → dirty 解消
-      setFacilitator(updated.facilitator_name ?? 'Helmsman');
       setSteering(updated.steering_enabled);
       setAlerts(updated.timekeeper_alerts.map(toDraft));
       queryClient.invalidateQueries({ queryKey: ['meeting', meeting.id, organizerId] });
@@ -206,7 +201,6 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
   });
 
   const dirty =
-    (facilitator.trim() || null) !== (meeting.facilitator_name ?? null) ||
     steering !== meeting.steering_enabled ||
     !alertsEqual(alerts, meeting.timekeeper_alerts);
 
@@ -224,7 +218,6 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
 
   // 状態を一行で要約 (closed 時のヒント)
   const summary = [
-    meeting.facilitator_name && `名前: ${meeting.facilitator_name}`,
     meeting.timekeeper_alerts.length > 0 && `Alert × ${meeting.timekeeper_alerts.length}`,
     !meeting.steering_enabled && '方向確認 OFF',
   ].filter(Boolean).join(' · ');
@@ -253,14 +246,6 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
 
       {!expanded ? null : (
       <div className={styles.body}>
-
-      <Field label="AI ファシリテーター名">
-        <Input
-          value={facilitator}
-          onChange={(_, d) => setFacilitator(d.value)}
-          placeholder="例: Helmsman, ナビ, ヘルメス…"
-        />
-      </Field>
 
       <div className={styles.toggleRow}>
         <div className={styles.toggleLabel}>

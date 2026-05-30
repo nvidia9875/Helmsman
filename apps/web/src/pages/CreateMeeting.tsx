@@ -20,7 +20,6 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { Pill } from '@/components/primitives/Pill';
-import { StatusDot } from '@/components/primitives/StatusDot';
 import { api, type MeetingMode } from '@/lib/api';
 import { useIdentity } from '@/lib/store';
 
@@ -230,7 +229,6 @@ const useStyles = makeStyles({
 
 const MODES: MeetingMode[] = ['Decision', 'Brainstorm', 'Status', 'Interview', '1on1', 'Kickoff'];
 const TEAMS_URL_PATTERN = /^https:\/\/teams\.microsoft\.com\/(.+meetup-join|meet\/\d+)/;
-const DEFAULT_FACILITATOR_NAME = 'Helmsman';
 
 const PREVIEW_STEPS: { label: string; desc: string }[] = [
   {
@@ -269,11 +267,6 @@ export function CreateMeeting() {
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
   const [groupId, setGroupId] = useState<string>(NO_GROUP);
-  // ファシリテーター名のデフォルトは常に "Helmsman" (プロダクト公式呼称)。
-  // 旧コードはユーザーの localStorage displayName を fallback にしていたが、
-  // displayName は「あなたの名前」、facilitator_name は「AI の呼称」で
-  // 概念が違うため切り離す。
-  const [facilitatorName, setFacilitatorName] = useState(DEFAULT_FACILITATOR_NAME);
 
   const { data: groups } = useQuery({
     queryKey: ['groups', userId],
@@ -290,20 +283,17 @@ export function CreateMeeting() {
         parent_meeting_id: parentId,
         teams_meeting_url: teamsUrl.trim() || null,
         group_id: groupId === NO_GROUP ? null : groupId,
-        facilitator_name: facilitatorName.trim() || null,
       }),
     onSuccess: (meeting) => {
-      // 旧コードは facilitator 名をユーザーの displayName にも保存していたが、
-      // これが「ボットちゃん が会議の自分の名前として残る」副作用を生んでいたので削除。
-      // facilitator_name は AI の呼称専用、displayName は別管理。
       navigate(`/m/${meeting.id}?organizer_id=${encodeURIComponent(userId)}`);
     },
   });
 
   const inheritedTopics = parentMeeting?.topics.filter((t) => t.state !== 'decided') ?? [];
   const teamsUrlValid = TEAMS_URL_PATTERN.test(teamsUrl.trim());
-  const ready = teamsUrlValid && !!facilitatorName.trim();
-  const displayedFacilitator = facilitatorName.trim() || DEFAULT_FACILITATOR_NAME;
+  const ready = teamsUrlValid;
+  // Bot の Teams 表示名は固定 (アプリ登録名 "Helmsman")。会議ごとには変えられない。
+  const displayedFacilitator = 'Helmsman';
 
   return (
     <div className={styles.root}>
@@ -320,7 +310,7 @@ export function CreateMeeting() {
         </Title2>
         <p className={styles.intro}>
           Helmsman は新しい会議を作りません。Teams カレンダーにある会議の URL を貼ってください。
-          Bot は「{displayedFacilitator} 🧭 (External)」として参加します。
+          Bot は「Helmsman 🧭 (External)」として参加します。
         </p>
       </header>
 
@@ -369,23 +359,6 @@ export function CreateMeeting() {
               </span>
             )}
 
-            <Field
-              label="AI ファシリテーター名"
-              required
-              hint="この名前で Bot が Teams 会議に参加します。例: Helmsman / Captain / 議長"
-            >
-              <Input
-                value={facilitatorName}
-                onChange={(_, d) => setFacilitatorName(d.value)}
-                placeholder="例: Helmsman"
-                size="large"
-              />
-            </Field>
-            <span className={styles.facilitatorHint}>
-              <StatusDot kind="brand" /> 参加者には{' '}
-              <strong style={{ color: 'var(--text-1)' }}>{displayedFacilitator} 🧭</strong>{' '}
-              として表示されます
-            </span>
           </div>
 
           <Accordion collapsible>
