@@ -508,6 +508,24 @@ async def graph_calling_callback(
         if call_state == "established" and call_id and meeting_id and organizer_id:
             from helmsman.services.recording_loop import start_recording
             start_recording(call_id, meeting_id, organizer_id)
+            # 入室挨拶を会議チャットに投稿(初回のみ)。チャット投稿の疎通確認も兼ねる。
+            if meeting.chat_post_enabled and not meeting.chat_greeted:
+                meeting.chat_greeted = True
+                from helmsman.services.graph_calling import (
+                    post_meeting_chat_message,
+                    resolve_thread_id,
+                )
+                tid = meeting.chat_thread_id
+                if not tid and meeting.teams_meeting_url:
+                    tid = await resolve_thread_id(meeting.teams_meeting_url)
+                    meeting.chat_thread_id = tid
+                if tid:
+                    name = meeting.facilitator_name or "Helmsman"
+                    await post_meeting_chat_message(
+                        tid,
+                        f"<b>🧭 {name}</b><br>こんにちは。この会議のファシリテーターとして参加しました。"
+                        f"議論の要点や決定はこのチャットにも書き込みます。",
+                    )
 
         # disconnected になったら call registry + 録音 + CallSession 全部削除
         if meeting.bot_status == "disconnected" and call_id:

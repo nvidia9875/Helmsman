@@ -93,6 +93,7 @@ class Meeting(BaseModel):
     # ----- Teams チャット投稿 (介入を会議チャットにも流す) -----
     chat_thread_id: str | None = None       # 会議チャットの threadId (初回 tick で解決・キャッシュ)
     chat_post_enabled: bool = True          # 介入を Teams チャットにも投稿するか
+    chat_greeted: bool = False              # bot 入室時の挨拶を投稿済みか (1回だけ)
 
     # ----- Intervention 履歴 (Frontend が feed として表示) -----
     delivered_interventions: list[InterventionDelivery] = Field(default_factory=list)
