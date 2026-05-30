@@ -202,7 +202,9 @@ async def start_meeting(
         goal=req.goal,
         mode=req.mode,
         total_minutes=req.total_minutes,
-        user_intensity=req.user_intensity,
+        # デモ用: 常に AGGRESSIVE で派遣 (介入頻度↑・閾値0・音声を時間条件なしで発火)。
+        # req.user_intensity は無視して固定。通常運用に戻すなら req.user_intensity に戻す。
+        user_intensity=UserIntensity.AGGRESSIVE,
         state=MeetingState.IN_PROGRESS,
         started_at=datetime.now(UTC),
         topics=topics,
