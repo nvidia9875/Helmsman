@@ -169,6 +169,11 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
             continue
         meeting.usage.apply(record, calculate_cost_usd(record))
 
+    # transcript を永続化 (bot disconnect 後でも report 生成・参照可能に)
+    # session.utterances は in-memory バッファで disconnect 時に消えるため、
+    # 直近 500 件を Cosmos の meeting.transcript にコピーして残す。
+    meeting.transcript = list(session.utterances[-500:])
+
     arbiter = InterventionArbiter()
     delivery = arbiter.decide(candidates, meeting, chair, chair)
     if delivery:

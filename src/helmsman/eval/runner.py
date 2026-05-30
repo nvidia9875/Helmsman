@@ -232,6 +232,12 @@ async def run_eval(
         # 誤動作しないように渡す
         audio_now = run_started_at + timedelta(seconds=audio_offset_accum)
 
+        # meeting.time_remaining_pct は wall-clock (`datetime.now(UTC)`) を直読みする
+        # ため、eval の高速 replay では「残り時間」が常に ~100% に張り付き、
+        # Arbiter の L3 昇格条件 (remaining < 20%) が成立しない。
+        # started_at を逆算更新することで、time_remaining_pct を audio 時間軸に同期する。
+        meeting.started_at = datetime.now(UTC) - timedelta(seconds=audio_offset_accum)
+
         tick_start = time.monotonic()
         candidates, delivery = await _run_one_tick(
             meeting,

@@ -207,7 +207,7 @@ async def start_meeting(
         inherited_topic_ids=inherited_topic_ids,
         teams_meeting_url=req.teams_meeting_url,
         group_id=req.group_id,
-        facilitator_name=(req.facilitator_name or "").strip() or None,
+        facilitator_name=(req.facilitator_name or "").strip() or "Helmsman",
     )
     if has_goal:
         _accumulate_usage(meeting.usage, [decomposer])
@@ -699,12 +699,18 @@ async def generate_report(
     if not meeting:
         raise HTTPException(404, "meeting not found")
 
+    # utterances の優先順位:
+    # 1) リクエストで明示的に渡された utterances
+    # 2) 会議に永続化された transcript (bot 経由会議の発言ログ)
+    # どちらも空ならレポートは meeting メタデータ (topics / decisions) のみで生成。
+    utterances = req.utterances or meeting.transcript or None
+
     generator = MeetingReportGenerator()
     report_md = await generator.run(
         meeting,
         template=req.template,
         memo=req.memo,
-        utterances=req.utterances or None,
+        utterances=utterances,
     )
 
     # コスト集計に積み上げ
@@ -717,7 +723,7 @@ async def generate_report(
         report_markdown=report_md,
         template_used=bool(req.template and req.template.strip()),
         memo_used=bool(req.memo and req.memo.strip()),
-        utterances_included=len(req.utterances or []),
+        utterances_included=len(utterances or []),
         template_snapshot=req.template,
         memo_snapshot=req.memo,
         generator_model=generator.deployment,

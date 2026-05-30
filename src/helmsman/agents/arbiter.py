@@ -116,17 +116,25 @@ class InterventionArbiter:
     ) -> bool:
         priority = self.PRIORITY.get(c.agent, 0)
 
-        # rate limit
-        rate_limit = (
-            self.HIGH_PRIORITY_RATE_LIMIT if priority >= 80 else self.RATE_LIMIT_SEC
-        )
+        # rate limit (intensity による調整)
+        # AGGRESSIVE モードではレートを半減し、短時間会議 (3-5 分のデモ等) でも
+        # 複数 agent (Dissent / Steering / ToneAgent) が連続発火できるようにする。
+        base_rate = self.RATE_LIMIT_SEC
+        high_rate = self.HIGH_PRIORITY_RATE_LIMIT
+        if meeting.user_intensity == UserIntensity.AGGRESSIVE:
+            base_rate = base_rate // 2  # 60s → 30s
+            high_rate = high_rate // 2  # 20s → 10s
+        rate_limit = high_rate if priority >= 80 else base_rate
         if meeting.last_intervention_at is not None:
             elapsed = (now - meeting.last_intervention_at).total_seconds()
             if elapsed < rate_limit:
                 return False
 
-        # density-aware silence
-        if meeting.recent_utterance_density > 0.8 and priority < 80:
+        # density-aware silence (AGGRESSIVE はより寛容に、議論密度が高くても通す)
+        density_threshold = (
+            0.95 if meeting.user_intensity == UserIntensity.AGGRESSIVE else 0.8
+        )
+        if meeting.recent_utterance_density > density_threshold and priority < 80:
             return False
 
         # authority gradient: 上司発言中は弱介入抑制

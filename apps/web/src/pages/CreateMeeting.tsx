@@ -255,7 +255,7 @@ export function CreateMeeting() {
   const styles = useStyles();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { userId, displayName, setName } = useIdentity();
+  const { userId } = useIdentity();
   const parentId = searchParams.get('parent');
 
   const { data: parentMeeting } = useQuery({
@@ -269,9 +269,11 @@ export function CreateMeeting() {
   const [mode, setMode] = useState<MeetingMode>('Decision');
   const [totalMinutes, setTotalMinutes] = useState(60);
   const [groupId, setGroupId] = useState<string>(NO_GROUP);
-  const initialName =
-    displayName && displayName !== 'Anonymous' ? displayName : DEFAULT_FACILITATOR_NAME;
-  const [facilitatorName, setFacilitatorName] = useState(initialName);
+  // ファシリテーター名のデフォルトは常に "Helmsman" (プロダクト公式呼称)。
+  // 旧コードはユーザーの localStorage displayName を fallback にしていたが、
+  // displayName は「あなたの名前」、facilitator_name は「AI の呼称」で
+  // 概念が違うため切り離す。
+  const [facilitatorName, setFacilitatorName] = useState(DEFAULT_FACILITATOR_NAME);
 
   const { data: groups } = useQuery({
     queryKey: ['groups', userId],
@@ -291,7 +293,9 @@ export function CreateMeeting() {
         facilitator_name: facilitatorName.trim() || null,
       }),
     onSuccess: (meeting) => {
-      if (facilitatorName) setName(facilitatorName);
+      // 旧コードは facilitator 名をユーザーの displayName にも保存していたが、
+      // これが「ボットちゃん が会議の自分の名前として残る」副作用を生んでいたので削除。
+      // facilitator_name は AI の呼称専用、displayName は別管理。
       navigate(`/m/${meeting.id}?organizer_id=${encodeURIComponent(userId)}`);
     },
   });

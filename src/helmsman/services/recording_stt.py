@@ -47,8 +47,41 @@ async def _download_wav(url: str, access_token: str | None) -> bytes | None:
         return None
 
 
+# 日本語ビジネス会議で頻出する固有名詞 + 業務用語を Speech SDK に hint として渡す。
+# PhraseListGrammar に登録すると、認識候補のスコアリングで優先される。
+# 出典: 月次ビジネスレビュー想定 (リリース判定 / QA / マーケ / deep dive 議題 等)。
+_JA_PHRASE_HINTS = [
+    # 製品/業務カタカナ語 (STT の鬼門)
+    "Q4", "Q3", "Q2", "Q1",
+    "ロードマップ", "ロードプラン",
+    "ローンチ", "プロダクトレビュー",
+    "QA", "QA 期間", "テストカバレッジ", "smoke test", "スモークテスト",
+    "プライシング", "月額", "年額",
+    "マーケキャンペーン", "アンバサダー連携", "メディア配信",
+    "ランディング", "クリエイティブ",
+    "deep dive", "ディープダイブ",
+    "パフォーマンスチューニング", "海外展開",
+    "グロース", "ROI", "CV", "KPI",
+    "ユーザーリサーチ",
+    # 意思決定語彙
+    "撤退ライン", "リリース判定",
+    "クリティカル失敗", "致命的バグ", "致命バグ",
+    "スコープ縮小", "巻きで進める",
+    "確定", "承知しました",
+    # 人名 (デモ fixture)
+    "山田", "佐藤", "高橋", "中村", "鈴木",
+    "山田 CTO", "佐藤 PM", "高橋 リード",
+    # ファシリテーター名
+    "Helmsman", "ヘルムスマン",
+]
+
+
 def _recognize_wav_sync(wav_bytes: bytes, language: str = "ja-JP") -> str | None:
-    """同期 Azure Speech SDK で WAV bytes を文字化 (batch)。重いので executor 経由で呼ぶ。"""
+    """同期 Azure Speech SDK で WAV bytes を文字化 (batch)。重いので executor 経由で呼ぶ。
+
+    PhraseListGrammar に日本語ビジネス会議の頻出語彙を hint として渡し、
+    固有名詞・業務用語の認識精度を向上させる。
+    """
     settings = get_settings()
     if not (settings.azure_speech_key and settings.azure_speech_region):
         logger.warning("stt.speech_not_configured")
@@ -71,6 +104,12 @@ def _recognize_wav_sync(wav_bytes: bytes, language: str = "ja-JP") -> str | None
         recognizer = speechsdk.SpeechRecognizer(
             speech_config=speech_config, audio_config=audio_config
         )
+
+        # phrase hints を登録 (ja-JP 認識の精度向上)
+        phrase_list = speechsdk.PhraseListGrammar.from_recognizer(recognizer)
+        for phrase in _JA_PHRASE_HINTS:
+            phrase_list.addPhrase(phrase)
+
         result = recognizer.recognize_once()
         reason = result.reason
         if reason == speechsdk.ResultReason.RecognizedSpeech:

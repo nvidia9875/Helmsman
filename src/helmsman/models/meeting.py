@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from helmsman.core.usage import MeetingUsage
 from helmsman.models.intervention import InterventionDelivery
 from helmsman.models.topic import Topic
+from helmsman.models.utterance import Utterance
 
 
 class MeetingMode(str, Enum):
@@ -92,6 +93,12 @@ class Meeting(BaseModel):
 
     # ----- Intervention 履歴 (Frontend が feed として表示) -----
     delivered_interventions: list[InterventionDelivery] = Field(default_factory=list)
+
+    # ----- 永続化された transcript (会議終了後も report 生成・ナレッジ参照可能に) -----
+    # Bot disconnect 後は CallSession の in-memory utterances は消えるが、
+    # こちらは Cosmos に保存される。tick ごとに session.utterances[-TRANSCRIPT_LIMIT:]
+    # で上書きされる (テールから 500 件を保持 = 1 時間会議でも十分)。
+    transcript: list[Utterance] = Field(default_factory=list)
 
     # ----- Phase 7: 会議横断記憶 (MemoryRetriever) -----
     # MemoryRetriever が当会議で既に surface 済の過去 decision id 一覧。

@@ -158,7 +158,7 @@ type DraftAlert = {
 export function MeetingSettings({ meeting, organizerId }: Props) {
   const styles = useStyles();
   const queryClient = useQueryClient();
-  const [facilitator, setFacilitator] = useState(meeting.facilitator_name ?? '');
+  const [facilitator, setFacilitator] = useState(meeting.facilitator_name ?? 'Helmsman');
   const [steering, setSteering] = useState(meeting.steering_enabled);
   const [alerts, setAlerts] = useState<DraftAlert[]>(
     meeting.timekeeper_alerts.map(toDraft),

@@ -165,19 +165,33 @@ async def get_bot_transcript(
     meeting_id: str,
     organizer_id: str,
     limit: int = 50,
+    repo: MeetingRepository = Depends(get_repo),
 ) -> BotTranscriptResponse:
-    """Bot がリアルタイムで拾った発言の一覧 (in-memory バッファ)。
+    """Bot がリアルタイムで拾った発言の一覧。
 
-    Bot が active な間だけ意味ある値が返る。会議終了後は空。
+    Bot が active な間は in-memory CallSession のバッファを返す (リアルタイム)。
+    Bot disconnect 後は Cosmos に永続化された `meeting.transcript` を fallback で返す
+    (会議終了後の参照 / レポート生成のため)。
     """
     registry = get_call_registry()
     session = await registry.lookup_by_meeting(meeting_id)
-    if not session:
+    if session:
+        # Bot active: in-memory バッファを返す
+        tail = session.utterances[-limit:]
+        return BotTranscriptResponse(
+            bot_active=True,
+            utterance_count=len(session.utterances),
+            utterances=[u.model_dump(mode="json") for u in tail],
+        )
+
+    # Bot disconnected: Cosmos の永続化 transcript を fallback で返す
+    meeting = await repo.get(meeting_id, organizer_id)
+    if not meeting or not meeting.transcript:
         return BotTranscriptResponse(bot_active=False, utterance_count=0, utterances=[])
-    tail = session.utterances[-limit:]
+    tail = meeting.transcript[-limit:]
     return BotTranscriptResponse(
-        bot_active=True,
-        utterance_count=len(session.utterances),
+        bot_active=False,
+        utterance_count=len(meeting.transcript),
         utterances=[u.model_dump(mode="json") for u in tail],
     )
 
