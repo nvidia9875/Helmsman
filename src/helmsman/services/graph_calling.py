@@ -38,6 +38,11 @@ BOT_SCOPE = "https://api.botframework.com/.default"
 GRAPH_AUTH_URL_TEMPLATE = "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
 GRAPH_SCOPE = "https://graph.microsoft.com/.default"
 
+# 会議チャット投稿用 delegated scope。app-only では POST /chats/{id}/messages が
+# 403 (Teamwork.Migrate.All required) になるため、refresh token から user 文脈の
+# access token を取得して投稿する。
+GRAPH_CHAT_SCOPE = "https://graph.microsoft.com/Chat.ReadWrite offline_access"
+
 
 @dataclass
 class _TokenCache:
@@ -49,6 +54,7 @@ class _TokenCache:
 
 _bot_token = _TokenCache()
 _graph_token = _TokenCache()
+_chat_token = _TokenCache()
 
 # call_id → (meeting_id, organizer_id) のプロセスローカルマップ。
 # Graph webhook で operationContext が echo back されない場合、call_id でこちらを引く。
@@ -148,6 +154,39 @@ async def _fetch_graph_token() -> tuple[str, int]:
         return data["access_token"], int(data["expires_in"])
 
 
+async def _fetch_chat_token() -> tuple[str, int]:
+    """会議チャット投稿用 delegated access token を refresh token から取得。
+
+    device code フローで取得した refresh token (admin@helmsmanjp 等の文脈) を使う。
+    refresh token は rotation されないと仮定 (Azure AD はデフォルトで rotate するが、
+    ここでは取得した access token だけキャッシュし、毎回 refresh token で更新する)。
+    """
+    s = get_settings()
+    if not (
+        s.microsoft_chat_refresh_token
+        and s.microsoft_app_id
+        and s.microsoft_app_tenant_id
+    ):
+        raise RuntimeError(
+            "Chat delegated token not configured "
+            "(MICROSOFT_CHAT_REFRESH_TOKEN / MICROSOFT_APP_ID / TENANT_ID)"
+        )
+    url = GRAPH_AUTH_URL_TEMPLATE.format(tenant=s.microsoft_app_tenant_id)
+    # NOTE: device code で取った refresh token は public client 由来なので、
+    # 交換時に client_secret を付けると AADSTS700025 で 401 になる。secret は付けない。
+    data = {
+        "grant_type": "refresh_token",
+        "client_id": s.microsoft_app_id,
+        "refresh_token": s.microsoft_chat_refresh_token,
+        "scope": GRAPH_CHAT_SCOPE,
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(url, data=data)
+        resp.raise_for_status()
+        body = resp.json()
+        return body["access_token"], int(body["expires_in"])
+
+
 async def _get_token(cache: _TokenCache, fetcher) -> str:
     """キャッシュが有効ならそれを返す、無ければ取得。expiry 60s 前にリフレッシュ。"""
     now = time.time()
@@ -165,6 +204,11 @@ async def get_bot_token() -> str:
 
 async def get_graph_token() -> str:
     return await _get_token(_graph_token, _fetch_graph_token)
+
+
+async def get_chat_token() -> str:
+    """会議チャット投稿用 delegated access token (refresh token 由来)。"""
+    return await _get_token(_chat_token, _fetch_chat_token)
 
 
 async def lookup_meeting_by_url(teams_meeting_url: str) -> dict[str, Any]:
@@ -232,7 +276,8 @@ async def post_meeting_chat_message(thread_id: str, html_content: str) -> bool:
     (介入配信の本筋=音声/記録 を止めないため)。
     """
     try:
-        token = await get_graph_token()
+        # delegated token (user 文脈) で投稿。app-only では 403 になるため。
+        token = await get_chat_token()
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 f"{GRAPH_API_BASE}/chats/{thread_id}/messages",

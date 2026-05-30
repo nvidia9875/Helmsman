@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     graph_callback_path: str = "/api/calling"
     # Teams 会議の organizer (Application permission で onlineMeetings を引く時の userId)
     microsoft_app_organizer_user_id: str | None = None
+    # 会議チャット投稿用 delegated refresh token (admin@helmsmanjp 等の文脈)。
+    # app-only Graph では POST /chats/{id}/messages が 403 になるため、device code で
+    # 取得した refresh token から access token を都度更新して投稿する。
+    microsoft_chat_refresh_token: str | None = None
 
     # ----- Azure AI Speech -----
     azure_speech_key: str | None = None
