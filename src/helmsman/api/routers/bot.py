@@ -521,11 +521,12 @@ async def graph_calling_callback(
                     meeting.chat_thread_id = tid
                 if tid:
                     name = meeting.facilitator_name or "Helmsman"
-                    await post_meeting_chat_message(
-                        tid,
-                        f"<b>🧭 {name}</b><br>こんにちは。この会議のファシリテーターとして参加しました。"
-                        f"議論の要点や決定はこのチャットにも書き込みます。",
+                    greeting = (
+                        f"<b>🧭 {name}</b><br>こんにちは。"
+                        "この会議のファシリテーターとして参加しました。"
+                        "議論の要点や決定はこのチャットにも書き込みます。"
                     )
+                    await post_meeting_chat_message(tid, greeting)
 
         # disconnected になったら call registry + 録音 + CallSession 全部削除
         if meeting.bot_status == "disconnected" and call_id:
