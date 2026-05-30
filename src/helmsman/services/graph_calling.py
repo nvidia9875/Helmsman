@@ -213,6 +213,50 @@ async def lookup_meeting_by_url(teams_meeting_url: str) -> dict[str, Any]:
         return meetings[0]
 
 
+async def resolve_thread_id(teams_meeting_url: str) -> str | None:
+    """Teams 会議 URL から会議チャットの threadId を解決(チャット投稿用)。"""
+    try:
+        meeting = await lookup_meeting_by_url(teams_meeting_url)
+        chat_info = meeting.get("chatInfo") or {}
+        return chat_info.get("threadId")
+    except Exception as e:  # noqa: BLE001
+        logger.error("graph.resolve_thread_failed", error=str(e)[:200])
+        return None
+
+
+async def post_meeting_chat_message(thread_id: str, html_content: str) -> bool:
+    """会議チャット(threadId)に HTML メッセージを投稿する。
+
+    Graph: POST /chats/{threadId}/messages。app-only では `ChatMessage.Send`
+    (Teams の protected API)が必要。失敗しても例外は投げず False を返す
+    (介入配信の本筋=音声/記録 を止めないため)。
+    """
+    try:
+        token = await get_graph_token()
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{GRAPH_API_BASE}/chats/{thread_id}/messages",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json={"body": {"contentType": "html", "content": html_content}},
+            )
+        if resp.status_code >= 400:
+            logger.error(
+                "graph.chat_post_failed",
+                status=resp.status_code,
+                body=resp.text[:400],
+                thread=thread_id[:40],
+            )
+            return False
+        logger.info("graph.chat_posted", thread=thread_id[:40], chars=len(html_content))
+        return True
+    except Exception as e:  # noqa: BLE001
+        logger.error("graph.chat_post_error", error=str(e)[:200])
+        return False
+
+
 async def join_meeting_via_graph(
     *,
     meeting_id: str,

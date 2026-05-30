@@ -190,6 +190,14 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
             meeting.surfaced_decision_ids.append(delivery.evidence_quote)
             meeting.surfaced_decision_ids = meeting.surfaced_decision_ids[-50:]
 
+    # 介入を Teams 会議チャットにも投稿(音声が聞き取りづらい問題への対策)。
+    # L2/L3 問わず配信された介入はチャットに残す。threadId は初回にここで解決・永続化。
+    if delivery:
+        try:
+            await _post_chat_safe(meeting, _format_chat_intervention(delivery))
+        except Exception as e:  # noqa: BLE001 — チャット投稿失敗で tick を止めない
+            logger.error("call.chat_post_failed", meeting_id=session.meeting_id, error=str(e)[:200])
+
     await repo.upsert(meeting)
 
     logger.info(
@@ -226,6 +234,42 @@ async def _run_tick(session: CallSession, *, pending_added: int) -> None:
 def _build_l3_utterance(content: str, reason: str | None) -> str:
     """会議で読み上げる短文を組み立てる。reason は付けない (long 過ぎる)。"""
     return content.strip()
+
+
+# 介入 agent → チャット表示アイコン
+_AGENT_ICON = {
+    "SteeringAgent": "🧭", "DecisionCapture": "✅", "TimeKeeper": "⏱",
+    "MemoryRetriever": "📜", "DissentSurface": "🗣", "ToneAgent": "🌡",
+    "QuietActivator": "💬", "Arbiter": "🧭",
+}
+
+
+def _format_chat_intervention(delivery) -> str:  # type: ignore[no-untyped-def]
+    """介入を Teams チャット用の HTML に整形(facilitator 名は固定 Helmsman)。"""
+    icon = _AGENT_ICON.get(getattr(delivery, "agent", ""), "🧭")
+    content = (getattr(delivery, "content", "") or "").strip()
+    reason = (getattr(delivery, "reason", "") or "").strip()
+    html = f"<b>{icon} Helmsman</b>"
+    if content:
+        html += f"<br>{content}"
+    if reason and reason != content:
+        html += f"<br><i>{reason}</i>"
+    return html
+
+
+async def _post_chat_safe(meeting, html: str) -> None:  # type: ignore[no-untyped-def]
+    """会議チャットに介入を投稿(失敗は握りつぶす)。threadId は初回に解決してキャッシュ。"""
+    if not getattr(meeting, "chat_post_enabled", True):
+        return
+    tid = getattr(meeting, "chat_thread_id", None)
+    if not tid and getattr(meeting, "teams_meeting_url", None):
+        from helmsman.services.graph_calling import resolve_thread_id
+        tid = await resolve_thread_id(meeting.teams_meeting_url)
+        meeting.chat_thread_id = tid
+    if not tid:
+        return
+    from helmsman.services.graph_calling import post_meeting_chat_message
+    await post_meeting_chat_message(tid, html)
 
 
 async def _maybe_fire_timekeeper(meeting, session: CallSession) -> None:  # type: ignore[no-untyped-def]
@@ -266,6 +310,10 @@ async def _maybe_fire_timekeeper(meeting, session: CallSession) -> None:  # type
             asyncio.create_task(
                 play_text_in_graph_call(session.call_connection_id, alert.message)
             )
+        # チャットにも投稿(fire-and-forget)
+        asyncio.create_task(
+            _post_chat_safe(meeting, f"<b>⏱ Helmsman</b><br>{alert.message}")
+        )
 
     if fired_any:
         # fired フラグを Cosmos に書き戻し
