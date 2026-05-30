@@ -509,8 +509,9 @@ async def graph_calling_callback(
             from helmsman.services.recording_loop import start_recording
             start_recording(call_id, meeting_id, organizer_id)
             # 入室挨拶を会議チャットに投稿(初回のみ)。チャット投稿の疎通確認も兼ねる。
+            # NOTE: chat_greeted は投稿成功後にのみ立てる。先に立てると 1 回失敗した
+            # だけで二度と挨拶しなくなる (リトライ不能バグ) ため。
             if meeting.chat_post_enabled and not meeting.chat_greeted:
-                meeting.chat_greeted = True
                 from helmsman.services.graph_calling import (
                     post_meeting_chat_message,
                     resolve_thread_id,
@@ -526,7 +527,23 @@ async def graph_calling_callback(
                         "この会議のファシリテーターとして参加しました。"
                         "議論の要点や決定はこのチャットにも書き込みます。"
                     )
-                    await post_meeting_chat_message(tid, greeting)
+                    try:
+                        await post_meeting_chat_message(tid, greeting)
+                        meeting.chat_greeted = True
+                    except Exception as e:  # noqa: BLE001
+                        # 投稿失敗時はフラグを立てず、次の established イベントで再試行する
+                        logger.warning(
+                            "graph.greeting_post_failed",
+                            meeting_id=meeting_id,
+                            thread_id=tid,
+                            error=str(e),
+                        )
+                else:
+                    logger.warning(
+                        "graph.greeting_no_thread_id",
+                        meeting_id=meeting_id,
+                        teams_meeting_url=meeting.teams_meeting_url,
+                    )
 
         # disconnected になったら call registry + 録音 + CallSession 全部削除
         if meeting.bot_status == "disconnected" and call_id:
