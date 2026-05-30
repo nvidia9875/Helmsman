@@ -1,0 +1,49 @@
+{"text": "では、Q4 ロードマップの確定会議を始めます。今日決めたいことは大きく 5 つあります。", "speaker_id": "yamada", "offset_sec": 0, "duration_sec": 5.0}
+{"text": "リリース日、QA 期間の確保、プライシング、マーケキャンペーンの Go 判断、それと来月の deep dive 議題ですね。", "speaker_id": "yamada", "offset_sec": 6, "duration_sec": 6.5}
+{"text": "承知しました。一つずつ詰めていきましょう。", "speaker_id": "takahashi", "offset_sec": 14, "duration_sec": 3.0}
+{"text": "まず一つ目、リリース日です。エンジニア側からは 9 月 15 日と 30 日、どちらの案が現実的ですか。", "speaker_id": "yamada", "offset_sec": 18, "duration_sec": 6.0}
+{"text": "機能の完成度だけで言えば 30 日が安全圏ですが、15 日でも詰めれば乗せられます。", "speaker_id": "takahashi", "offset_sec": 25, "duration_sec": 5.5}
+{"text": "マーケ側のキャンペーン準備期間を考えると、15 日が望ましいです。", "speaker_id": "sato", "offset_sec": 32, "duration_sec": 4.5}
+{"text": "私もマーケ視点では 15 日希望です。30 日だと年末商戦の入り口を逃します。", "speaker_id": "suzuki", "offset_sec": 38, "duration_sec": 5.5}
+{"text": "中村さん、デザイン側からはどうですか。", "speaker_id": "yamada", "offset_sec": 46, "duration_sec": 3.5}
+{"text": "あ、はい。デザインは大きな変更がないので、どちらでも対応可能です。", "speaker_id": "nakamura", "offset_sec": 51, "duration_sec": 4.5}
+{"text": "では、リリース日は 9 月 15 日で確定でいきましょう。", "speaker_id": "yamada", "offset_sec": 57, "duration_sec": 4.0}
+{"text": "了解です。エンジニア側はそれで巻きでいきます。", "speaker_id": "takahashi", "offset_sec": 62, "duration_sec": 4.0}
+{"text": "次に QA 期間です。15 日リリースだと、QA は何日確保できますか。", "speaker_id": "yamada", "offset_sec": 68, "duration_sec": 5.0}
+{"text": "通常は 2 週間取りたいところですが、15 日リリースだと 8 月 25 日からスタートで 3 週間取れる計算です。", "speaker_id": "takahashi", "offset_sec": 74, "duration_sec": 6.5}
+{"text": "ちょっと待ってください。3 週間は紙の上だけで、実際は機能開発が後ろに伸びると 2 週間切る可能性があります。", "speaker_id": "sato", "offset_sec": 82, "duration_sec": 6.5}
+{"text": "それは確かに。リスクとしてはあります。", "speaker_id": "takahashi", "offset_sec": 90, "duration_sec": 3.5}
+{"text": "QA が短いと、本番後に致命的バグが残るリスクが上がります。これは個人的に強く懸念しています。", "speaker_id": "sato", "offset_sec": 95, "duration_sec": 6.0}
+{"text": "懸念は分かります。ただ QA 延長のために発売を遅らせる選択肢はないんですよね。", "speaker_id": "yamada", "offset_sec": 103, "duration_sec": 5.5}
+{"text": "そうですね、致し方ないかと。難しい判断です。", "speaker_id": "sato", "offset_sec": 110, "duration_sec": 4.0}
+{"text": "QA 期間内で、リスクの高い領域だけテストカバレッジを集中させる方針でどうでしょう。", "speaker_id": "takahashi", "offset_sec": 115, "duration_sec": 5.5}
+{"text": "それなら現実的かもしれません。重点領域を絞って A/B 並行でやりましょう。", "speaker_id": "sato", "offset_sec": 122, "duration_sec": 5.5}
+{"text": "QA は集中型 2-3 週間で進める方向で確定でいいですか。", "speaker_id": "yamada", "offset_sec": 129, "duration_sec": 4.5}
+{"text": "はい、それで進めます。", "speaker_id": "takahashi", "offset_sec": 135, "duration_sec": 2.5}
+{"text": "次にプライシングです。月額 1200 円、年額 12000 円の案、どうですか。", "speaker_id": "yamada", "offset_sec": 140, "duration_sec": 5.5}
+{"text": "いいですね、競合比較表からも妥当です。", "speaker_id": "suzuki", "offset_sec": 147, "duration_sec": 3.5}
+{"text": "私もいいと思います。", "speaker_id": "takahashi", "offset_sec": 152, "duration_sec": 2.0}
+{"text": "いいですね。", "speaker_id": "nakamura", "offset_sec": 155, "duration_sec": 1.5}
+{"text": "妥当な水準だと思います。", "speaker_id": "sato", "offset_sec": 158, "duration_sec": 2.5}
+{"text": "では、その線で確定。", "speaker_id": "yamada", "offset_sec": 163, "duration_sec": 2.5}
+{"text": "続いてマーケキャンペーンですが、ローンチ 1 週間前から事前告知、当日メディア配信、その後アンバサダー連携の 3 段構えでいきたいです。", "speaker_id": "suzuki", "offset_sec": 168, "duration_sec": 8.0}
+{"text": "中村さん、デザイン側の対応は間に合いますか。", "speaker_id": "yamada", "offset_sec": 178, "duration_sec": 4.0}
+{"text": "ええと、事前告知のクリエイティブは間に合いますが、当日のメディア配信用素材は厳しいかもしれません。", "speaker_id": "nakamura", "offset_sec": 183, "duration_sec": 6.5}
+{"text": "そこは外部パートナーと並行で進めて、社内チェックは 1 往復でお願いします。", "speaker_id": "suzuki", "offset_sec": 192, "duration_sec": 5.5}
+{"text": "ちなみに、ランディングのインタラクションって、最新のスクロール演出も入れたいんですけど。あれカッコいいですよね。", "speaker_id": "takahashi", "offset_sec": 200, "duration_sec": 6.5}
+{"text": "高橋さん、ここはマーケキャンペーン論なので、戻りましょう。", "speaker_id": "yamada", "offset_sec": 208, "duration_sec": 4.5}
+{"text": "続けます。アンバサダー連携は 20 名規模でリストアップ済みです。", "speaker_id": "suzuki", "offset_sec": 214, "duration_sec": 5.0}
+{"text": "では、3 段構えのキャンペーン、Go で確定しましょう。", "speaker_id": "yamada", "offset_sec": 222, "duration_sec": 4.0}
+{"text": "最後、来月の deep dive 議題です。次のフェーズで深掘りすべきテーマ、何かありますか。", "speaker_id": "yamada", "offset_sec": 228, "duration_sec": 5.5}
+{"text": "パフォーマンスチューニングが課題として残っています。", "speaker_id": "takahashi", "offset_sec": 235, "duration_sec": 3.5}
+{"text": "あと、海外展開のロードマップも整理が必要です。", "speaker_id": "sato", "offset_sec": 240, "duration_sec": 3.5}
+{"text": "グロース施策のチャネル別 ROI 分析も急ぎ目です。", "speaker_id": "suzuki", "offset_sec": 246, "duration_sec": 4.0}
+{"text": "ユーザーインタビューを集約したリサーチ報告も入れてください。", "speaker_id": "nakamura", "offset_sec": 252, "duration_sec": 4.5}
+{"text": "4 つとも来月の deep dive に乗せましょう。優先順位はあとで Slack で詰めます。", "speaker_id": "yamada", "offset_sec": 258, "duration_sec": 5.5}
+{"text": "残り時間、あと 10 分くらいですね。", "speaker_id": "yamada", "offset_sec": 265, "duration_sec": 3.5}
+{"text": "そうですね、ありがとう。各論点で「うまくいかなかった時の撤退ライン」を 1 つずつ確認しましょう。", "speaker_id": "yamada", "offset_sec": 278, "duration_sec": 6.5}
+{"text": "リリース判定で、smoke test の critical 失敗が 3 件以上出たら、即 24 時間延期。", "speaker_id": "takahashi", "offset_sec": 285, "duration_sec": 6.0}
+{"text": "QA 期間中、致命バグが 2 件以上残ったら、機能のスコープ縮小で着地。", "speaker_id": "sato", "offset_sec": 293, "duration_sec": 5.5}
+{"text": "マーケキャンペーン 1 週間で目標 CV が 50% 未達なら、第 2 段の予算を半分に。", "speaker_id": "suzuki", "offset_sec": 301, "duration_sec": 5.5}
+{"text": "いいですね。それで全部の論点、決まりました。今日はここまでにしましょう。", "speaker_id": "yamada", "offset_sec": 308, "duration_sec": 5.5}
+{"text": "議事録は Helmsman が整理してくれるので、各自確認お願いします。", "speaker_id": "yamada", "offset_sec": 314, "duration_sec": 5.0}

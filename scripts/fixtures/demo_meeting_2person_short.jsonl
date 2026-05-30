@@ -1,0 +1,25 @@
+{"text": "今日は新規プロジェクトのクラウド基盤を決めます。論点は 5 つ、基盤選定、コスト、学習コスト、AI サービス、移行戦略です。", "speaker_id": "yamada", "offset_sec": 0, "duration_sec": 9.0}
+{"text": "了解です。私は AWS 推しの立場で議論したいです。", "speaker_id": "sato", "offset_sec": 9.5, "duration_sec": 4.5}
+{"text": "私は Azure 推しです。一つ目、既存システムが M365 で動いているので、Azure なら Entra ID 統合が楽です。", "speaker_id": "yamada", "offset_sec": 14.5, "duration_sec": 9.0}
+{"text": "AWS は EKS や Lambda の成熟度が高く、世界シェア 30% 以上で安心感があります。", "speaker_id": "sato", "offset_sec": 24, "duration_sec": 7.5}
+{"text": "二つ目、コストです。AWS の Savings Plan で年間 40% 節約可能です。", "speaker_id": "sato", "offset_sec": 32, "duration_sec": 6.5}
+{"text": "Azure の Reservation も同程度です。月 30 万円なら大差ないです。", "speaker_id": "yamada", "offset_sec": 39, "duration_sec": 6.0}
+{"text": "いいですね、ほぼ拮抗です。", "speaker_id": "sato", "offset_sec": 45.5, "duration_sec": 3.0}
+{"text": "いいですね、コストは決定要因になりません。", "speaker_id": "yamada", "offset_sec": 49, "duration_sec": 4.0}
+{"text": "賛成です。", "speaker_id": "sato", "offset_sec": 53.5, "duration_sec": 2.0}
+{"text": "では、コスト論点は拮抗のため決定要因にしないで確定します。", "speaker_id": "yamada", "offset_sec": 56, "duration_sec": 6.0}
+{"text": "三つ目、学習コスト。エンジニアの 80% は AWS 経験者です。", "speaker_id": "yamada", "offset_sec": 62.5, "duration_sec": 6.0}
+{"text": "それは大きな懸念です。Azure 移行には 3 ヶ月の学習が必要です。", "speaker_id": "sato", "offset_sec": 69, "duration_sec": 7.0}
+{"text": "正直、本番リリースまでにスキルが間に合うか強く心配しています。深刻です。", "speaker_id": "sato", "offset_sec": 76.5, "duration_sec": 7.5}
+{"text": "懸念は理解します。6 週間集中トレーニングでサポートします。Microsoft Learn と社内ハンズオン併用で。", "speaker_id": "yamada", "offset_sec": 84.5, "duration_sec": 9.5}
+{"text": "それなら現実的かもしれません。", "speaker_id": "sato", "offset_sec": 94.5, "duration_sec": 3.5}
+{"text": "では、学習コストは 6 週間集中トレーニングで吸収する方針で確定します。", "speaker_id": "yamada", "offset_sec": 98.5, "duration_sec": 7.0}
+{"text": "四つ目、マネージド AI サービス。AWS の Bedrock は Claude が呼べます。", "speaker_id": "sato", "offset_sec": 106, "duration_sec": 6.5}
+{"text": "Azure OpenAI は GPT 提供で SLA も明確です。会議 AI ならこちらです。", "speaker_id": "yamada", "offset_sec": 113, "duration_sec": 7.5}
+{"text": "ところで、NVIDIA H200 のクラスタが GA したけど、見ました。あれ凄いですよね。", "speaker_id": "yamada", "offset_sec": 121, "duration_sec": 8.0}
+{"text": "山田さん、今は AI サービスの議論です。話題戻しましょう。", "speaker_id": "sato", "offset_sec": 129.5, "duration_sec": 5.5}
+{"text": "失礼しました。AI 用途はマネージド AI も Azure で確定でいいですか。", "speaker_id": "yamada", "offset_sec": 135.5, "duration_sec": 6.5}
+{"text": "AI に限れば Azure 優位。マネージド AI は Azure で確定。", "speaker_id": "sato", "offset_sec": 142.5, "duration_sec": 6.0}
+{"text": "最後、移行戦略です。一気に Azure か、ハイブリッドか。", "speaker_id": "yamada", "offset_sec": 149, "duration_sec": 5.5}
+{"text": "既存資産から、ハイブリッドが現実的。新規は Azure、既存は AWS で並走で。", "speaker_id": "sato", "offset_sec": 155, "duration_sec": 7.5}
+{"text": "いいですね、移行戦略はハイブリッドで確定。全論点クリアです。お疲れさまでした。", "speaker_id": "yamada", "offset_sec": 163, "duration_sec": 8.0}

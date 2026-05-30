@@ -1,0 +1,35 @@
+{"text": "今日は新規プロジェクトのクラウド基盤を決める会議です。5 つの論点があります。", "speaker_id": "yamada", "offset_sec": 0, "duration_sec": 5.5}
+{"text": "基盤選定、ランニングコスト、チーム学習コスト、マネージド AI サービス、移行戦略。この 5 つを順番に決めます。", "speaker_id": "yamada", "offset_sec": 6, "duration_sec": 8.5}
+{"text": "了解です。私は Amazon Web Services 推しの立場で議論したいです。", "speaker_id": "sato", "offset_sec": 15, "duration_sec": 5.5}
+{"text": "私は Microsoft Azure 推しです。一つ目、基盤選定からいきましょう。", "speaker_id": "yamada", "offset_sec": 21, "duration_sec": 5.5}
+{"text": "既存システムが M365 と Active Directory で動いているので、Azure なら Entra ID 統合が楽です。", "speaker_id": "yamada", "offset_sec": 27, "duration_sec": 8.0}
+{"text": "AWS は EKS や Lambda の成熟度が高く、世界シェアも 30% 以上で安心感があります。", "speaker_id": "sato", "offset_sec": 35.5, "duration_sec": 7.5}
+{"text": "では、基盤選定の結論は最後にまわして、まずコスト比較に進みます。", "speaker_id": "yamada", "offset_sec": 43.5, "duration_sec": 6.0}
+{"text": "二つ目、ランニングコスト。AWS の Reserved Instance と Savings Plan なら年間 40% 節約できます。", "speaker_id": "sato", "offset_sec": 50, "duration_sec": 8.5}
+{"text": "Azure も Reservation と Hybrid Use Benefit で同程度の値引きあります。月 30 万円規模なら大差ないです。", "speaker_id": "yamada", "offset_sec": 59, "duration_sec": 9.0}
+{"text": "いいですね、ほぼ拮抗です。", "speaker_id": "sato", "offset_sec": 68.5, "duration_sec": 3.0}
+{"text": "いいですね、コストは決定要因になりません。", "speaker_id": "yamada", "offset_sec": 72, "duration_sec": 4.0}
+{"text": "賛成です、他の論点で判断しましょう。", "speaker_id": "sato", "offset_sec": 76.5, "duration_sec": 3.5}
+{"text": "賛成です。", "speaker_id": "yamada", "offset_sec": 80.5, "duration_sec": 2.0}
+{"text": "では、コスト論点は拮抗のため決定要因にせず、他の観点で判断する方針で確定します。", "speaker_id": "yamada", "offset_sec": 83, "duration_sec": 8.0}
+{"text": "三つ目、チームの学習コスト。エンジニアの 80% は AWS 経験者です。", "speaker_id": "yamada", "offset_sec": 91.5, "duration_sec": 7.0}
+{"text": "それは大きな懸念です。Azure に切り替えるなら、学習に 3 ヶ月はかかる試算です。", "speaker_id": "sato", "offset_sec": 99, "duration_sec": 8.0}
+{"text": "正直、本番リリースまでにスキルが間に合うか、強く心配しています。", "speaker_id": "sato", "offset_sec": 107.5, "duration_sec": 6.5}
+{"text": "チームの不安も大きいです。これは深刻な問題で、放置できません。", "speaker_id": "sato", "offset_sec": 114.5, "duration_sec": 6.0}
+{"text": "懸念は理解します。トレーニング期間を 6 週間でフルサポートしましょう。Microsoft Learn と社内ハンズオン併用で。", "speaker_id": "yamada", "offset_sec": 121, "duration_sec": 10.0}
+{"text": "それなら現実的かもしれません。試してみる価値はあります。", "speaker_id": "sato", "offset_sec": 131.5, "duration_sec": 5.5}
+{"text": "では、学習コストは 6 週間集中トレーニングで吸収する方針で確定します。", "speaker_id": "yamada", "offset_sec": 137.5, "duration_sec": 7.0}
+{"text": "四つ目、マネージド AI サービス。AWS の Bedrock は Anthropic の Claude が直接呼べます。", "speaker_id": "sato", "offset_sec": 145, "duration_sec": 8.5}
+{"text": "Azure OpenAI は GPT を SLA 付きで提供しています。会議 AI のような用途ならこちらが向いてます。", "speaker_id": "yamada", "offset_sec": 154, "duration_sec": 9.0}
+{"text": "ところで、最近 NVIDIA H200 のクラスタが GA したけど、見ました。あれ性能凄いですよね。", "speaker_id": "yamada", "offset_sec": 163.5, "duration_sec": 8.5}
+{"text": "山田さん、今は AI サービスの議論です。話題を戻しましょう。", "speaker_id": "sato", "offset_sec": 172.5, "duration_sec": 5.5}
+{"text": "ああ、すみません。AI 用途では Azure OpenAI で確定でいいですか。", "speaker_id": "yamada", "offset_sec": 178.5, "duration_sec": 6.0}
+{"text": "AI 用途に限れば Azure 優位は認めます。マネージド AI は Azure で確定。", "speaker_id": "sato", "offset_sec": 185, "duration_sec": 7.0}
+{"text": "最後、移行戦略です。一気に Azure に寄せるか、ハイブリッドか、選びましょう。", "speaker_id": "yamada", "offset_sec": 192.5, "duration_sec": 7.5}
+{"text": "既存資産を考えると、ハイブリッドが現実的です。新規は Azure、既存は AWS で並走させましょう。", "speaker_id": "sato", "offset_sec": 200.5, "duration_sec": 8.0}
+{"text": "いいですね、その方針で。移行戦略はハイブリッドで確定します。", "speaker_id": "yamada", "offset_sec": 209, "duration_sec": 6.0}
+{"text": "全部の論点、確定しました。撤退ラインだけ最後に確認します。", "speaker_id": "yamada", "offset_sec": 215.5, "duration_sec": 5.5}
+{"text": "Azure 移行で性能劣化が 30% 以上なら、AWS 戻し含めた再評価ということで。", "speaker_id": "sato", "offset_sec": 221.5, "duration_sec": 7.5}
+{"text": "学習コストが 2 ヶ月超過したら、外部コンサル投入の判断ラインということで。", "speaker_id": "yamada", "offset_sec": 229.5, "duration_sec": 7.5}
+{"text": "全部の撤退ラインも合意できました。今日はここまでで終わりましょう。", "speaker_id": "sato", "offset_sec": 237.5, "duration_sec": 6.0}
+{"text": "議事録は Helmsman が整理してくれます。お疲れさまでした。", "speaker_id": "yamada", "offset_sec": 244, "duration_sec": 5.5}
