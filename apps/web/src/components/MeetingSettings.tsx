@@ -169,14 +169,16 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
     !meeting.steering_enabled;
   const [expanded, setExpanded] = useState(hasAnySetting);
 
-  // meeting が外から再 fetch されたら sync (派遣直後など)
-  // facilitator_name が null/空文字なら "Helmsman" にフォールバック
-  // (初期 mount の useState と一貫した default で、ポーリングで空に戻る現象を防ぐ)
+  // 別の会議に切り替わった時だけローカル編集をサーバ値で初期化する。
+  // ⚠️ ポーリング再取得(in_progress 会議は数秒ごと)で再同期すると、編集中の
+  // alert / 名前が毎回上書きされ「保存できない(編集が消える)」現象になるため、
+  // 依存は meeting.id のみ。保存成功時は onSuccess で明示的に同期する。
   useEffect(() => {
     setFacilitator(meeting.facilitator_name ?? 'Helmsman');
     setSteering(meeting.steering_enabled);
     setAlerts(meeting.timekeeper_alerts.map(toDraft));
-  }, [meeting.id, meeting.facilitator_name, meeting.steering_enabled, meeting.timekeeper_alerts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meeting.id]);
 
   const save = useMutation({
     mutationFn: () =>
@@ -190,8 +192,16 @@ export function MeetingSettings({ meeting, organizerId }: Props) {
           enabled: a.enabled,
         })),
       }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      // 保存後の正値(新規 alert には server が id を採番)でローカルを同期 → dirty 解消
+      setFacilitator(updated.facilitator_name ?? 'Helmsman');
+      setSteering(updated.steering_enabled);
+      setAlerts(updated.timekeeper_alerts.map(toDraft));
       queryClient.invalidateQueries({ queryKey: ['meeting', meeting.id, organizerId] });
+    },
+    onError: (e) => {
+      // 失敗を可視化(従来は無反応で「保存できない」に見えた)
+      alert('設定の保存に失敗しました: ' + (e instanceof Error ? e.message : String(e)));
     },
   });
 
