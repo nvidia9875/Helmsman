@@ -260,6 +260,46 @@ def _count_human_participants(participants: list[Any]) -> int:
 
 
 
+# 参加直後の roster ラグ対策の grace period。
+# bot が会議に入った瞬間の participants snapshot には bot 自身しか載っておらず、
+# 先に入室済みの human がまだ反映されていないことがある。猶予なしで
+# "human 0人 → hangup" すると、bot が自分の参加直後に自滅してしまう
+# (実際に発生: graph.participants count=1 human_count=0 → 即 auto_hangup)。
+# そこで「一度でも human を見た後に 0 になった」場合のみ即 hangup し、
+# まだ一度も human を見ていない間はこの秒数まで hangup を保留する。
+HANGUP_GRACE_SEC = 120
+
+# call_id → 参加監視の状態 (プロセスローカル)。
+#   first_seen_at: 最初の participants イベントを受けた時刻 (epoch 秒)
+#   human_seen:    これまでに human 参加者を 1 度でも観測したか
+_call_roster_state: dict[str, dict[str, Any]] = {}
+
+
+def _should_auto_hangup(call_id: str, human_count: int) -> bool:
+    """human 0 人のとき、本当に hangup すべきか判定する (grace period 込み)。
+
+    - human を 1 度でも見た後に 0 → 全員退出 → True
+    - まだ human を見ていない & grace period 内 → roster ラグの可能性 → False
+    - まだ human を見ていない & grace period 超過 → 空会議 → True
+    """
+    import time
+
+    now = time.time()
+    state = _call_roster_state.get(call_id)
+    if state is None:
+        state = {"first_seen_at": now, "human_seen": False}
+        _call_roster_state[call_id] = state
+
+    if human_count > 0:
+        state["human_seen"] = True
+        return False
+
+    if state["human_seen"]:
+        return True  # 居た human が全員抜けた → 終了
+    # まだ一度も human を見ていない: grace period を過ぎていれば空会議とみなす
+    return (now - state["first_seen_at"]) >= HANGUP_GRACE_SEC
+
+
 # Graph call state → Helmsman bot_status マッピング
 # https://learn.microsoft.com/graph/api/resources/call (state プロパティ)
 _STATUS_BY_GRAPH_STATE = {
@@ -434,18 +474,21 @@ async def graph_calling_callback(
             if not isinstance(participants, list):
                 participants = []
             human_count = _count_human_participants(participants)
+            should_hangup = _should_auto_hangup(call_id, human_count)
             logger.info(
                 "graph.participants",
                 call_id=call_id,
                 count=len(participants),
                 human_count=human_count,
+                should_hangup=should_hangup,
             )
-            if human_count == 0:
+            if should_hangup:
                 logger.info(
                     "graph.auto_hangup",
                     call_id=call_id,
                     reason="no_human_participants",
                 )
+                _call_roster_state.pop(call_id, None)
                 try:
                     from helmsman.services.graph_calling import hangup_via_graph
                     await hangup_via_graph(call_id)
@@ -455,6 +498,12 @@ async def graph_calling_callback(
                         call_id=call_id,
                         error=str(e),
                     )
+            elif human_count == 0:
+                logger.info(
+                    "graph.auto_hangup_deferred",
+                    call_id=call_id,
+                    reason="grace_period_or_roster_lag",
+                )
             handled += 1
             continue
 
@@ -549,6 +598,7 @@ async def graph_calling_callback(
         if meeting.bot_status == "disconnected" and call_id:
             from helmsman.services.graph_calling import unregister_call
             from helmsman.services.recording_loop import stop_recording
+            _call_roster_state.pop(call_id, None)
             unregister_call(call_id)
             stop_recording(call_id)
             # CallSession (call_buffer) からも削除 → lookup_by_meeting が古い call_id を返さない
