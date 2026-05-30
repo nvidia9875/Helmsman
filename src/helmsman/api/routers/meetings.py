@@ -346,6 +346,23 @@ async def get_meeting(
     m = await repo.get(meeting_id, organizer_id)
     if not m:
         raise HTTPException(404, "meeting not found")
+
+    # Stale auto-disconnect: Graph webhook が落ちて bot_status が in_call/connecting
+    # で固まる現象への防御。bot_last_event_at から 10 分以上経過していたら
+    # 自動で disconnected に書き戻す。
+    # (本来は Graph 側が常にイベントを送るが、deploy 中の取りこぼし等で
+    # 状態不整合になるケースがある)
+    STALE_TIMEOUT_SEC = 600
+    if (
+        m.bot_status in {"in_call", "connecting", "joining"}
+        and m.bot_last_event_at is not None
+    ):
+        elapsed = (datetime.now(UTC) - m.bot_last_event_at).total_seconds()
+        if elapsed > STALE_TIMEOUT_SEC:
+            m.bot_status = "disconnected"
+            m.bot_call_connection_id = None
+            m.bot_last_event_at = datetime.now(UTC)
+            await repo.upsert(m)
     return m
 
 
