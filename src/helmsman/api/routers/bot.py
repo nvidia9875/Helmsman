@@ -260,42 +260,55 @@ def _count_human_participants(participants: list[Any]) -> int:
 
 
 
-# 参加直後の roster ラグ対策の grace period。
-# bot が会議に入った瞬間の participants snapshot には bot 自身しか載っておらず、
-# 先に入室済みの human がまだ反映されていないことがある。猶予なしで
-# "human 0人 → hangup" すると、bot が自分の参加直後に自滅してしまう
-# (実際に発生: graph.participants count=1 human_count=0 → 即 auto_hangup)。
-# そこで「一度でも human を見た後に 0 になった」場合のみ即 hangup し、
-# まだ一度も human を見ていない間はこの秒数まで hangup を保留する。
+# 参加直後の roster ラグ + ロスターのフラつき対策の grace period。
+#
+# 2 種類の誤 hangup を防ぐ:
+#   (1) 参加直後ラグ: bot が会議に入った瞬間の participants snapshot には bot 自身しか
+#       載っておらず、先に入室済みの human がまだ反映されていないことがある。
+#   (2) ロスターのフラつき / 部分スナップショット: Graph の /participants 通知は
+#       bot だけの部分スナップショットが混ざることがあり、毎回完全ロスターとして数えると
+#       瞬間的な human_count=0 が発生する。実測では 29ms の間に count=2(human 1) →
+#       count=1(human 0) とフラついて即 auto_hangup し、bot が挨拶直後に自滅していた。
+#
+# 対策:
+#   - human を未観測の間は HANGUP_GRACE_SEC まで hangup を保留 (1) 用。
+#   - human を観測した後でも、human_count=0 が HANGUP_EMPTY_SEC 続いたときだけ hangup (2) 用。
 HANGUP_GRACE_SEC = 120
+HANGUP_EMPTY_SEC = 20
 
 # call_id → 参加監視の状態 (プロセスローカル)。
 #   first_seen_at: 最初の participants イベントを受けた時刻 (epoch 秒)
 #   human_seen:    これまでに human 参加者を 1 度でも観測したか
+#   last_human_at: 最後に human_count > 0 を観測した時刻 (epoch 秒、未観測なら 0.0)
 _call_roster_state: dict[str, dict[str, Any]] = {}
 
 
 def _should_auto_hangup(call_id: str, human_count: int) -> bool:
-    """human 0 人のとき、本当に hangup すべきか判定する (grace period 込み)。
+    """human 0 人のとき、本当に hangup すべきか判定する (grace period + デバウンス込み)。
 
-    - human を 1 度でも見た後に 0 → 全員退出 → True
-    - まだ human を見ていない & grace period 内 → roster ラグの可能性 → False
-    - まだ human を見ていない & grace period 超過 → 空会議 → True
+    - human あり → human_seen / last_human_at を更新 → False
+    - human 0 & 観測済 & 最後の human 観測から HANGUP_EMPTY_SEC 未満 → フラつきの可能性 → False
+    - human 0 & 観測済 & HANGUP_EMPTY_SEC 以上 0 が継続 → 全員退出 → True
+    - human 0 & 未観測 & grace period 内 → roster ラグの可能性 → False
+    - human 0 & 未観測 & grace period 超過 → 空会議 → True
     """
     import time
 
     now = time.time()
     state = _call_roster_state.get(call_id)
     if state is None:
-        state = {"first_seen_at": now, "human_seen": False}
+        state = {"first_seen_at": now, "human_seen": False, "last_human_at": 0.0}
         _call_roster_state[call_id] = state
 
     if human_count > 0:
         state["human_seen"] = True
+        state["last_human_at"] = now
         return False
 
     if state["human_seen"]:
-        return True  # 居た human が全員抜けた → 終了
+        # 居た human が全員抜けた可能性。ただし Graph の部分スナップショット由来の
+        # 瞬間的な 0 を全員退出と誤認しないよう、0 が一定時間続いたときだけ hangup。
+        return (now - state["last_human_at"]) >= HANGUP_EMPTY_SEC
     # まだ一度も human を見ていない: grace period を過ぎていれば空会議とみなす
     return (now - state["first_seen_at"]) >= HANGUP_GRACE_SEC
 
