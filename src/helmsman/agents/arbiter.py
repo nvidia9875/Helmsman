@@ -158,8 +158,18 @@ class InterventionArbiter:
         priority = self.PRIORITY.get(c.agent, 0)
         time_left = meeting.time_remaining_pct
 
-        # L3: 時間切れ間近 + 高優先度のみ (60分会議で 0-2 回)
-        if time_left < 0.20 and priority >= 80:
+        # L3 (音声介入) の昇格条件:
+        # - 通常 (NORMAL/QUIET): time_left < 0.20 かつ priority >= 80
+        #   (60 分会議の終盤、重要な決定だけが声で介入)
+        # - AGGRESSIVE: 時間条件を外し、priority >= 80 なら常に L3
+        #   (デモや短時間会議で音声介入をデモするためのモード)
+        #   rate_limit (AGGRESSIVE で 10 秒) が頻度を制御し、結果として
+        #   おおむね 30 秒-1 分に 1 回のペースで bot が音声発話する
+        l3_unlocked = (
+            meeting.user_intensity == UserIntensity.AGGRESSIVE
+            or time_left < 0.20
+        )
+        if l3_unlocked and priority >= 80:
             return InterventionLevel.L3
 
         # L2: 中・高優先度
