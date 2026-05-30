@@ -46,6 +46,11 @@ router = APIRouter(
     dependencies=[Depends(require_api_key)],
 )
 
+# Bot 状態が in_call/connecting/joining のまま、Graph webhook が
+# この秒数以上届かなければ stale と判定し、自動で disconnected に書き戻す。
+# 10 分: Graph の通常イベント間隔より十分長く、誤判定を避けられる閾値。
+BOT_STALE_TIMEOUT_SEC = 600
+
 
 # ---------- request / response schemas ----------
 
@@ -348,17 +353,16 @@ async def get_meeting(
         raise HTTPException(404, "meeting not found")
 
     # Stale auto-disconnect: Graph webhook が落ちて bot_status が in_call/connecting
-    # で固まる現象への防御。bot_last_event_at から 10 分以上経過していたら
+    # で固まる現象への防御。bot_last_event_at から閾値以上経過していたら
     # 自動で disconnected に書き戻す。
     # (本来は Graph 側が常にイベントを送るが、deploy 中の取りこぼし等で
     # 状態不整合になるケースがある)
-    STALE_TIMEOUT_SEC = 600
     if (
         m.bot_status in {"in_call", "connecting", "joining"}
         and m.bot_last_event_at is not None
     ):
         elapsed = (datetime.now(UTC) - m.bot_last_event_at).total_seconds()
-        if elapsed > STALE_TIMEOUT_SEC:
+        if elapsed > BOT_STALE_TIMEOUT_SEC:
             m.bot_status = "disconnected"
             m.bot_call_connection_id = None
             m.bot_last_event_at = datetime.now(UTC)
