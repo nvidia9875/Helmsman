@@ -77,10 +77,15 @@ _JA_PHRASE_HINTS = [
 
 
 def _recognize_wav_sync(wav_bytes: bytes, language: str = "ja-JP") -> str | None:
-    """同期 Azure Speech SDK で WAV bytes を文字化 (batch)。重いので executor 経由で呼ぶ。
+    """同期 Azure Speech SDK で WAV bytes を文字化 (連続認識)。重いので executor 経由で呼ぶ。
 
-    PhraseListGrammar に日本語ビジネス会議の頻出語彙を hint として渡し、
-    固有名詞・業務用語の認識精度を向上させる。
+    旧実装は `recognize_once()` を使っていたが、これは最初の utterance だけ返す仕様で、
+    10 秒チャンク内に複数発言があっても 1 つしか拾えず、「こんにちは。」「クラウドの。」
+    のように細切れになる問題があった。
+
+    新実装は `start_continuous_recognition()` を使い、WAV を最後まで scan して
+    全 utterance を連結した文字列を返す。
+    PhraseListGrammar に業務固有名詞を hint として渡して認識精度を向上させる。
     """
     settings = get_settings()
     if not (settings.azure_speech_key and settings.azure_speech_region):
@@ -93,6 +98,8 @@ def _recognize_wav_sync(wav_bytes: bytes, language: str = "ja-JP") -> str | None
         tmp_path = tmp.name
 
     try:
+        import threading
+
         import azure.cognitiveservices.speech as speechsdk
 
         speech_config = speechsdk.SpeechConfig(
@@ -110,23 +117,47 @@ def _recognize_wav_sync(wav_bytes: bytes, language: str = "ja-JP") -> str | None
         for phrase in _JA_PHRASE_HINTS:
             phrase_list.addPhrase(phrase)
 
-        result = recognizer.recognize_once()
-        reason = result.reason
-        if reason == speechsdk.ResultReason.RecognizedSpeech:
-            text = (result.text or "").strip()
-            return text or None
-        if reason == speechsdk.ResultReason.NoMatch:
-            return None
-        # Canceled
-        if reason == speechsdk.ResultReason.Canceled:
-            cancellation = speechsdk.CancellationDetails.from_result(result)
+        # 連続認識: WAV を最後まで scan して全 utterance を集める
+        done = threading.Event()
+        collected: list[str] = []
+        canceled_info: dict[str, str] = {}
+
+        def _on_recognized(evt: object) -> None:
+            res = evt.result  # type: ignore[attr-defined]
+            if res.reason == speechsdk.ResultReason.RecognizedSpeech:
+                txt = (res.text or "").strip()
+                if txt:
+                    collected.append(txt)
+
+        def _on_session_stopped(_: object) -> None:
+            done.set()
+
+        def _on_canceled(evt: object) -> None:
+            details = speechsdk.CancellationDetails.from_result(evt.result)  # type: ignore[attr-defined]
+            canceled_info["reason"] = str(details.reason)
+            canceled_info["details"] = (details.error_details or "")[:200]
+            done.set()
+
+        recognizer.recognized.connect(_on_recognized)
+        recognizer.session_stopped.connect(_on_session_stopped)
+        recognizer.canceled.connect(_on_canceled)
+
+        recognizer.start_continuous_recognition()
+        # WAV の長さ + 余裕 5 秒で timeout (10 秒 chunk なら 15 秒で必ず session_stopped)
+        done.wait(timeout=30.0)
+        recognizer.stop_continuous_recognition()
+
+        if canceled_info:
             logger.warning(
                 "stt.canceled",
-                reason=str(cancellation.reason),
-                details=(cancellation.error_details or "")[:200],
+                reason=canceled_info.get("reason", ""),
+                details=canceled_info.get("details", ""),
             )
+
+        if not collected:
             return None
-        return None
+        # 連結: 句読点間に半角スペースを入れず、自然な結合
+        return "".join(collected)
     except Exception as e:  # noqa: BLE001
         logger.error("stt.recognize_failed", error=str(e), error_type=type(e).__name__)
         return None
