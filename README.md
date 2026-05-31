@@ -6,13 +6,6 @@
 >
 > Microsoft Agent Hackathon 2026 個人部門エントリ作品
 
-| | |
-|---|---|
-| 🌐 Live demo (frontend) | https://kind-glacier-0122f6400.7.azurestaticapps.net |
-| 🔌 Live API | https://helmsman-dev-api.ashyocean-e634ae12.westus2.azurecontainerapps.io |
-| 📖 API docs (OpenAPI) | https://helmsman-dev-api.ashyocean-e634ae12.westus2.azurecontainerapps.io/docs |
-| 🛠️ Deploy 手順 | [DEPLOY.md](./DEPLOY.md) |
-
 ---
 
 ## 1 分で分かる Helmsman
